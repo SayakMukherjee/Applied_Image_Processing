@@ -29,6 +29,9 @@ ImageRGB scaleImageCopy(const ImageRGB& image, const float factor)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+        result.data[i] = image.data[i] * factor;
+
     }
 
     return result;
@@ -49,6 +52,7 @@ void scaleImageInPlace(ImageRGB& image, const float factor)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+        image.data[i] *= factor;
     }
 }
 
@@ -82,6 +86,19 @@ float getMinimumValue(const std::vector<float>& list)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    #pragma omp parallel for
+    //for (auto item : list) {
+    for (int i = 0; i < list.size(); i++) {
+
+        if (list[i] < min_val) {
+
+            #pragma omp critical
+            if (list[i] < min_val) {
+                min_val = std::min(min_val, list[i]);
+            }
+        }
+    }
+
     // Return minimum value.
     return min_val;
 }
@@ -93,5 +110,16 @@ float getSum(const std::vector<float>& list)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    // doesn't work for openmp
+    /*for (auto item : list) {
+        sum += item;
+    }*/
+
+    #pragma omp parallel for reduction(+: sum)
+    for (int i = 0; i < list.size(); i++) {
+        sum += list[i];
+    }
+
     return sum;
 }

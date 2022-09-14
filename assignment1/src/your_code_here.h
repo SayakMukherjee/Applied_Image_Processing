@@ -29,7 +29,7 @@ int getImageOffset(const Image<T>& image, int x, int y)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
-    return 0;
+    return y * image.width + x ;
 }
 
 
@@ -46,6 +46,65 @@ glm::vec2 getRGBImageMinMax(const ImageRGB& image) {
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = image.width * image.height;
+
+
+    // Loop for maximum value
+    #pragma omp parallel for
+    for (int i = 0; i < num_pixels; i++) {
+
+        if (image.data[i].x > max_val || image.data[i].y > max_val || image.data[i].z > max_val) {
+
+            #pragma omp critical
+            if (image.data[i].x > max_val) {
+
+                max_val = std::max(max_val, image.data[i].x);
+            }
+
+            #pragma omp critical
+            if (image.data[i].y > max_val) {
+
+                max_val = std::max(max_val, image.data[i].y);
+            }
+
+            #pragma omp critical
+            if (image.data[i].z > max_val) {
+
+                max_val = std::max(max_val, image.data[i].z);
+            }
+        }
+    }
+
+    // Set minimum as maximum value found
+    min_val = max_val;
+
+    // Loop for minimum value
+    #pragma omp parallel for
+    for (int i = 0; i < num_pixels; i++) {
+
+        if (image.data[i].x < min_val || image.data[i].y < min_val || image.data[i].z < min_val) {
+
+            #pragma omp critical
+            if (image.data[i].x < min_val) {
+
+                min_val = std::min(min_val, image.data[i].x);
+            }
+
+            #pragma omp critical
+            if (image.data[i].y < min_val) {
+
+                min_val = std::min(min_val, image.data[i].y);
+            }
+
+            #pragma omp critical
+            if (image.data[i].z < min_val) {
+
+                min_val = std::min(min_val, image.data[i].z);
+            }
+        }
+
+    }
 
     // Return min and max value as x and y components of a vector.
     return glm::vec2(min_val, max_val);
@@ -66,6 +125,17 @@ ImageRGB normalizeRGBImage(const ImageRGB& image)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    auto num_pixels = image.width * image.height;
+
+    //std::cout << "Min value: " + std::to_string(min_max[0]) << std::endl;
+    //std::cout << "Max value: " + std::to_string(min_max[1]) << std::endl;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i] = (image.data[i] - min_max[0]) / (min_max[1] - min_max[0]);
+        
+    }
+
     return result;
 }
 
@@ -79,6 +149,14 @@ ImageRGB applyGamma(const ImageRGB& image, const float gamma)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = image.width * image.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i] = glm::vec3(std::pow(image.data[i].x, gamma), std::pow(image.data[i].y, gamma), std::pow(image.data[i].z, gamma));
+
+    }
 
     return result;
 }
@@ -104,6 +182,12 @@ ImageFloat rgbToLuminance(const ImageRGB& rgb)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = rgb.width * rgb.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+        luminance.data[i] = (rgb.data[i].x * WEIGHTS_RGB_TO_LUM[0]) + (rgb.data[i].y * WEIGHTS_RGB_TO_LUM[1]) + (rgb.data[i].z * WEIGHTS_RGB_TO_LUM[2]);
+    }
 
     return luminance;
 }

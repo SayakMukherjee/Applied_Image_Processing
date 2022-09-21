@@ -127,9 +127,6 @@ ImageRGB normalizeRGBImage(const ImageRGB& image)
 
     auto num_pixels = image.width * image.height;
 
-    //std::cout << "Min value: " + std::to_string(min_max[0]) << std::endl;
-    //std::cout << "Max value: " + std::to_string(min_max[1]) << std::endl;
-
     for (int i = 0; i < num_pixels; i++) {
 
         result.data[i] = (image.data[i] - min_max[0]) / (min_max[1] - min_max[0]);

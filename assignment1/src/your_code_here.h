@@ -262,6 +262,8 @@ ImageFloat getGradientAttenuation(const ImageGradient& grad_H, const float alpha
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    // Computing the L2 norms of gradient
+
     auto grad_norm = ImageFloat(phi.width, phi.height);
 
     auto curr_grad_norm = 0.0f;
@@ -278,10 +280,13 @@ ImageFloat getGradientAttenuation(const ImageGradient& grad_H, const float alpha
     
     }
 
+
+    // Compute the mean gradient
     mean_grad /= num_pixels;
 
     alpha = alpha_rel * mean_grad;
 
+    // Computing phi_k
     for (int i = 0; i < num_pixels; i++) {
 
         phi.data[i] = (alpha / (grad_norm.data[i] + EPSILON)) * std::pow(((grad_norm.data[i] + EPSILON) / alpha), beta);
@@ -314,6 +319,7 @@ ImageFloat getAttenuatedDivergence(ImageGradient& grad_H, const ImageFloat& phi)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    // Computing attentuated gradients G
     auto G_x = ImageFloat(phi.width, phi.height);
     auto G_y = ImageFloat(phi.width, phi.height);
 
@@ -326,6 +332,7 @@ ImageFloat getAttenuatedDivergence(ImageGradient& grad_H, const ImageFloat& phi)
         }
     }
 
+    // Computing divergence of G
     for (auto y = 0; y < phi.height; y++) {
         for (auto x = 0; x < phi.width; x++) {
 

@@ -218,9 +218,16 @@ ImageGradient getGradients(const ImageFloat& H)
              * TODO: YOUR CODE GOES HERE!!!
              ******/
 
+            if (x + 1 < H.width)
+                grad_x.data[getImageOffset(grad_x, x, y)] = H.data[getImageOffset(H, x + 1, y)] - H.data[getImageOffset(H, x, y)];
+            else
+                grad_x.data[getImageOffset(grad_x, x, y)] = 0.0f;
 
-            grad_x.data[getImageOffset(grad_x, x, y)] = 0.0f; // TODO: Change this!
-            grad_y.data[getImageOffset(grad_y, x, y)] = 0.0f; // TODO: Change this!
+            if (y + 1 < H.height)
+                grad_y.data[getImageOffset(grad_y, x, y)] = H.data[getImageOffset(H, x, y + 1)] - H.data[getImageOffset(H, x, y)];
+            else 
+                grad_y.data[getImageOffset(grad_y, x, y)] = 0.0f;
+
         }
     }
 
@@ -258,6 +265,32 @@ ImageFloat getGradientAttenuation(const ImageGradient& grad_H, const float alpha
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    auto grad_norm = ImageFloat(phi.width, phi.height);
+
+    auto curr_grad_norm = 0.0f;
+
+    auto num_pixels = grad_norm.width * grad_norm.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        curr_grad_norm = std::pow((std::pow(grad_H.x.data[i], 2) + std::pow(grad_H.y.data[i], 2)), 0.5);
+
+        grad_norm.data[i] = curr_grad_norm;
+
+        mean_grad += curr_grad_norm;
+    
+    }
+
+    mean_grad /= num_pixels;
+
+    alpha = alpha_rel * mean_grad;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        phi.data[i] = (alpha / (grad_norm.data[i] + EPSILON)) * std::pow(((grad_norm.data[i] + EPSILON) / alpha), beta);
+    
+    }
+
     return phi;
 }
 
@@ -284,6 +317,33 @@ ImageFloat getAttenuatedDivergence(ImageGradient& grad_H, const ImageFloat& phi)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    auto G_x = ImageFloat(phi.width, phi.height);
+    auto G_y = ImageFloat(phi.width, phi.height);
+
+    for (auto y = 0; y < phi.height; y++) {
+        for (auto x = 0; x < phi.width; x++) {
+
+            G_x.data[getImageOffset(G_x, x, y)] = grad_H.x.data[getImageOffset(grad_H.x, x, y)] * phi.data[getImageOffset(phi, x, y)];
+            G_y.data[getImageOffset(G_y, x, y)] = grad_H.y.data[getImageOffset(grad_H.y, x, y)] * phi.data[getImageOffset(phi, x, y)];
+
+        }
+    }
+
+    for (auto y = 0; y < phi.height; y++) {
+        for (auto x = 0; x < phi.width; x++) {
+
+            if (x - 1 >= 0)
+                div_G.data[getImageOffset(div_G, x, y)] = G_x.data[getImageOffset(G_x, x, y)] - G_x.data[getImageOffset(G_x, x - 1, y)];
+            else
+                div_G.data[getImageOffset(div_G, x, y)] = 0.0f;
+
+            if (y - 1 >= 0)
+                div_G.data[getImageOffset(div_G, x, y)] += G_y.data[getImageOffset(G_y, x, y)] - G_y.data[getImageOffset(G_y, x, y - 1)];
+            else
+                div_G.data[getImageOffset(div_G, x, y)] += 0.0f;
+
+        }
+    }
 
     return div_G;
 }
@@ -323,6 +383,25 @@ ImageFloat solvePoisson(const ImageFloat& divergence_G, const int num_iters = 20
          * TODO: YOUR CODE GOES HERE!!!
          ******/
 
+        auto before_x = 0.0f;
+        auto after_x = 0.0f;
+
+        auto before_y = 0.0f;
+        auto after_y = 0.0f;
+
+        #pragma omp parallel for
+        for (auto y = 0; y < I.height; y++) {
+            for (auto x = 0; x < I.width; x++) {
+
+                if (x == 0 || x + 1 == I.width || y == 0 || y + 1 == I.height)
+                    I_next.data[getImageOffset(I_next, x, y)] = 0.0f;
+                else
+                    I_next.data[getImageOffset(I_next, x, y)] = ((I.data[getImageOffset(I, (x-1), y)] + I.data[getImageOffset(I, (x+1), y)] + I.data[getImageOffset(I, x, (y-1))] + I.data[getImageOffset(I, x, (y+1))])
+                                                                - divergence_G.data[getImageOffset(divergence_G, x, y)]) / 4;
+
+            }
+        }
+
         // Swaps the current and next solution so that the next iteration
         // uses the new solution as input and the previous solution as output.
         std::swap(I, I_next);
@@ -346,6 +425,16 @@ ImageRGB rescaleRgbByLuminance(const ImageRGB& original_rgb, const ImageFloat& o
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = result.width * result.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i].x = std::pow(original_rgb.data[i].x / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+        result.data[i].y = std::pow(original_rgb.data[i].y / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+        result.data[i].z = std::pow(original_rgb.data[i].z / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+    
+    }
 
 
     return result;

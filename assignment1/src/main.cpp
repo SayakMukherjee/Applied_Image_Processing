@@ -71,33 +71,33 @@ int main()
     H.writeToFile(outDirPath / "3b_log_luminance_H.png");
 
     //// 4. Compute luminance gradients \nabla H (Sec. 5).
-    //auto gradients = getGradients(H);
-    //gradientsToRgb(gradients).writeToFile(outDirPath / "4_gradients_H.png");
+    auto gradients = getGradients(H);
+    gradientsToRgb(gradients).writeToFile(outDirPath / "4_gradients_H.png");
 
-    //// 5. Compute the gradient attenuation \phi (Sec. 4).
-    //auto grad_atten = getGradientAttenuation(gradients);
-    //grad_atten.writeToFile(outDirPath / "5_attenuation_phi.png");
+    // 5. Compute the gradient attenuation \phi (Sec. 4).
+    auto grad_atten = getGradientAttenuation(gradients);
+    grad_atten.writeToFile(outDirPath / "5_attenuation_phi.png");
 
-    //// 6. Compute the attentuated divergence (Sec. 3 and 5).
-    //auto divergence = getAttenuatedDivergence(gradients, grad_atten);
-    //imageRgbToFloat(normalizeRGBImage(imageFloatToRgb(divergence))).writeToFile(outDirPath / "6_divergence_G.png");
+    // 6. Compute the attentuated divergence (Sec. 3 and 5).
+    auto divergence = getAttenuatedDivergence(gradients, grad_atten);
+    imageRgbToFloat(normalizeRGBImage(imageFloatToRgb(divergence))).writeToFile(outDirPath / "6_divergence_G.png");
 
-    //// 7. Very simplistic single-scale direct solver of the Poisson equation (Eq. 3).
-    //time_start = std::chrono::steady_clock::now();
-    //auto solved_luminance = solvePoisson(divergence);
-    //time_end = std::chrono::steady_clock::now();
-    //std::cout << "Poisson Solver | Elapsed time: "
-    //          << std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count() / 1e3f
-    //          << " ms" << std::endl;
+    // 7. Very simplistic single-scale direct solver of the Poisson equation (Eq. 3).
+    time_start = std::chrono::steady_clock::now();
+    auto solved_luminance = solvePoisson(divergence);
+    time_end = std::chrono::steady_clock::now();
+    std::cout << "Poisson Solver | Elapsed time: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count() / 1e3f
+              << " ms" << std::endl;
 
-    //// Normalize the result to [0,1] range.
-    //// Note: We are using our code for RGB images here which is inefficient.
-    //solved_luminance = imageRgbToFloat(normalizeRGBImage(imageFloatToRgb(solved_luminance)));
-    //solved_luminance.writeToFile(outDirPath / "7_poisson_solution_I.png");
+    // Normalize the result to [0,1] range.
+    // Note: We are using our code for RGB images here which is inefficient.
+    solved_luminance = imageRgbToFloat(normalizeRGBImage(imageFloatToRgb(solved_luminance)));
+    solved_luminance.writeToFile(outDirPath / "7_poisson_solution_I.png");
 
-    //// 8. Convert back to RGB.
-    //auto result_rgb = rescaleRgbByLuminance(image, luminance, solved_luminance);
-    //result_rgb.writeToFile(outDirPath / "8_result_rgb.png");
+    // 8. Convert back to RGB.
+    auto result_rgb = rescaleRgbByLuminance(image, luminance, solved_luminance);
+    result_rgb.writeToFile(outDirPath / "8_result_rgb.png");
 
     // Custom validations
     test();

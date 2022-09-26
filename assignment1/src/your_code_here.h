@@ -29,7 +29,7 @@ int getImageOffset(const Image<T>& image, int x, int y)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
-    return 0;
+    return y * image.width + x ;
 }
 
 
@@ -46,6 +46,65 @@ glm::vec2 getRGBImageMinMax(const ImageRGB& image) {
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = image.width * image.height;
+
+
+    // Loop for maximum value
+    #pragma omp parallel for
+    for (int i = 0; i < num_pixels; i++) {
+
+        if (image.data[i].x > max_val || image.data[i].y > max_val || image.data[i].z > max_val) {
+
+            #pragma omp critical
+            if (image.data[i].x > max_val) {
+
+                max_val = std::max(max_val, image.data[i].x);
+            }
+
+            #pragma omp critical
+            if (image.data[i].y > max_val) {
+
+                max_val = std::max(max_val, image.data[i].y);
+            }
+
+            #pragma omp critical
+            if (image.data[i].z > max_val) {
+
+                max_val = std::max(max_val, image.data[i].z);
+            }
+        }
+    }
+
+    // Set minimum as maximum value found
+    min_val = max_val;
+
+    // Loop for minimum value
+    #pragma omp parallel for
+    for (int i = 0; i < num_pixels; i++) {
+
+        if (image.data[i].x < min_val || image.data[i].y < min_val || image.data[i].z < min_val) {
+
+            #pragma omp critical
+            if (image.data[i].x < min_val) {
+
+                min_val = std::min(min_val, image.data[i].x);
+            }
+
+            #pragma omp critical
+            if (image.data[i].y < min_val) {
+
+                min_val = std::min(min_val, image.data[i].y);
+            }
+
+            #pragma omp critical
+            if (image.data[i].z < min_val) {
+
+                min_val = std::min(min_val, image.data[i].z);
+            }
+        }
+
+    }
 
     // Return min and max value as x and y components of a vector.
     return glm::vec2(min_val, max_val);
@@ -66,6 +125,14 @@ ImageRGB normalizeRGBImage(const ImageRGB& image)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    auto num_pixels = image.width * image.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i] = (image.data[i] - min_max[0]) / (min_max[1] - min_max[0]);
+        
+    }
+
     return result;
 }
 
@@ -79,6 +146,14 @@ ImageRGB applyGamma(const ImageRGB& image, const float gamma)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = image.width * image.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i] = glm::vec3(std::pow(image.data[i].x, gamma), std::pow(image.data[i].y, gamma), std::pow(image.data[i].z, gamma));
+
+    }
 
     return result;
 }
@@ -104,6 +179,12 @@ ImageFloat rgbToLuminance(const ImageRGB& rgb)
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = rgb.width * rgb.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+        luminance.data[i] = (rgb.data[i].x * WEIGHTS_RGB_TO_LUM[0]) + (rgb.data[i].y * WEIGHTS_RGB_TO_LUM[1]) + (rgb.data[i].z * WEIGHTS_RGB_TO_LUM[2]);
+    }
 
     return luminance;
 }
@@ -134,9 +215,16 @@ ImageGradient getGradients(const ImageFloat& H)
              * TODO: YOUR CODE GOES HERE!!!
              ******/
 
+            if (x + 1 < H.width)
+                grad_x.data[getImageOffset(grad_x, x, y)] = H.data[getImageOffset(H, x + 1, y)] - H.data[getImageOffset(H, x, y)];
+            else
+                grad_x.data[getImageOffset(grad_x, x, y)] = 0.0f;
 
-            grad_x.data[getImageOffset(grad_x, x, y)] = 0.0f; // TODO: Change this!
-            grad_y.data[getImageOffset(grad_y, x, y)] = 0.0f; // TODO: Change this!
+            if (y + 1 < H.height)
+                grad_y.data[getImageOffset(grad_y, x, y)] = H.data[getImageOffset(H, x, y + 1)] - H.data[getImageOffset(H, x, y)];
+            else 
+                grad_y.data[getImageOffset(grad_y, x, y)] = 0.0f;
+
         }
     }
 
@@ -174,6 +262,37 @@ ImageFloat getGradientAttenuation(const ImageGradient& grad_H, const float alpha
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    // Computing the L2 norms of gradient
+
+    auto grad_norm = ImageFloat(phi.width, phi.height);
+
+    auto curr_grad_norm = 0.0f;
+
+    auto num_pixels = grad_norm.width * grad_norm.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        curr_grad_norm = std::pow((std::pow(grad_H.x.data[i], 2) + std::pow(grad_H.y.data[i], 2)), 0.5);
+
+        grad_norm.data[i] = curr_grad_norm;
+
+        mean_grad += curr_grad_norm;
+    
+    }
+
+
+    // Compute the mean gradient
+    mean_grad /= num_pixels;
+
+    alpha = alpha_rel * mean_grad;
+
+    // Computing phi_k
+    for (int i = 0; i < num_pixels; i++) {
+
+        phi.data[i] = (alpha / (grad_norm.data[i] + EPSILON)) * std::pow(((grad_norm.data[i] + EPSILON) / alpha), beta);
+    
+    }
+
     return phi;
 }
 
@@ -200,6 +319,35 @@ ImageFloat getAttenuatedDivergence(ImageGradient& grad_H, const ImageFloat& phi)
      * TODO: YOUR CODE GOES HERE!!!
      ******/
 
+    // Computing attentuated gradients G
+    auto G_x = ImageFloat(phi.width, phi.height);
+    auto G_y = ImageFloat(phi.width, phi.height);
+
+    for (auto y = 0; y < phi.height; y++) {
+        for (auto x = 0; x < phi.width; x++) {
+
+            G_x.data[getImageOffset(G_x, x, y)] = grad_H.x.data[getImageOffset(grad_H.x, x, y)] * phi.data[getImageOffset(phi, x, y)];
+            G_y.data[getImageOffset(G_y, x, y)] = grad_H.y.data[getImageOffset(grad_H.y, x, y)] * phi.data[getImageOffset(phi, x, y)];
+
+        }
+    }
+
+    // Computing divergence of G
+    for (auto y = 0; y < phi.height; y++) {
+        for (auto x = 0; x < phi.width; x++) {
+
+            if (x - 1 >= 0)
+                div_G.data[getImageOffset(div_G, x, y)] = G_x.data[getImageOffset(G_x, x, y)] - G_x.data[getImageOffset(G_x, x - 1, y)];
+            else
+                div_G.data[getImageOffset(div_G, x, y)] = 0.0f;
+
+            if (y - 1 >= 0)
+                div_G.data[getImageOffset(div_G, x, y)] += G_y.data[getImageOffset(G_y, x, y)] - G_y.data[getImageOffset(G_y, x, y - 1)];
+            else
+                div_G.data[getImageOffset(div_G, x, y)] += 0.0f;
+
+        }
+    }
 
     return div_G;
 }
@@ -239,6 +387,25 @@ ImageFloat solvePoisson(const ImageFloat& divergence_G, const int num_iters = 20
          * TODO: YOUR CODE GOES HERE!!!
          ******/
 
+        auto before_x = 0.0f;
+        auto after_x = 0.0f;
+
+        auto before_y = 0.0f;
+        auto after_y = 0.0f;
+
+        #pragma omp parallel for
+        for (auto y = 0; y < I.height; y++) {
+            for (auto x = 0; x < I.width; x++) {
+
+                if (x == 0 || x + 1 == I.width || y == 0 || y + 1 == I.height)
+                    I_next.data[getImageOffset(I_next, x, y)] = 0.0f;
+                else
+                    I_next.data[getImageOffset(I_next, x, y)] = ((I.data[getImageOffset(I, (x-1), y)] + I.data[getImageOffset(I, (x+1), y)] + I.data[getImageOffset(I, x, (y-1))] + I.data[getImageOffset(I, x, (y+1))])
+                                                                - divergence_G.data[getImageOffset(divergence_G, x, y)]) / 4;
+
+            }
+        }
+
         // Swaps the current and next solution so that the next iteration
         // uses the new solution as input and the previous solution as output.
         std::swap(I, I_next);
@@ -262,6 +429,16 @@ ImageRGB rescaleRgbByLuminance(const ImageRGB& original_rgb, const ImageFloat& o
     /*******
      * TODO: YOUR CODE GOES HERE!!!
      ******/
+
+    auto num_pixels = result.width * result.height;
+
+    for (int i = 0; i < num_pixels; i++) {
+
+        result.data[i].x = std::pow(original_rgb.data[i].x / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+        result.data[i].y = std::pow(original_rgb.data[i].y / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+        result.data[i].z = std::pow(original_rgb.data[i].z / std::max(original_luminance.data[i], EPSILON), saturation) * new_luminance.data[i];
+    
+    }
 
 
     return result;

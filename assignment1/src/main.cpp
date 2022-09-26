@@ -1,7 +1,41 @@
 #include "your_code_here.h"
 
+#include <glm/vec3.hpp>
+//#include <glm/detail/func_vector_relational.hpp>
+
 static const std::filesystem::path dataDirPath { DATA_DIR };
 static const std::filesystem::path outDirPath { OUTPUT_DIR };
+
+int test() {
+
+    for (const auto& entry : std::filesystem::directory_iterator(outDirPath)) {
+
+        auto filename = entry.path().stem().string() + ".png";
+
+        auto expected = ImageRGB(dataDirPath / "expected-outputs" / filename);
+        auto results = ImageRGB(outDirPath / filename);
+
+        auto exp_num_pixels = expected.width * expected.height;
+        auto res_num_pixels = results.width * results.height;
+
+        if (exp_num_pixels != res_num_pixels) {
+            std::cout << "Size mismatch: " + filename << std::endl;
+            continue;
+        }
+
+        for (int i = 0; i < exp_num_pixels; i++) {
+
+            if (!glm::all(glm::equal(expected.data[i], results.data[i]))) {
+                std::cout << "Validation Failed: " + filename << std::endl;
+                break;
+            }
+        }
+
+
+    }
+    
+    return 0;
+}
 
 /// <summary>
 /// Main method. Runs default tests. Feel free to modify it, add more tests and experiments,
@@ -36,7 +70,7 @@ int main()
     auto H = lnImage(luminance);
     H.writeToFile(outDirPath / "3b_log_luminance_H.png");
 
-    // 4. Compute luminance gradients \nabla H (Sec. 5).
+    //// 4. Compute luminance gradients \nabla H (Sec. 5).
     auto gradients = getGradients(H);
     gradientsToRgb(gradients).writeToFile(outDirPath / "4_gradients_H.png");
 
@@ -64,6 +98,9 @@ int main()
     // 8. Convert back to RGB.
     auto result_rgb = rescaleRgbByLuminance(image, luminance, solved_luminance);
     result_rgb.writeToFile(outDirPath / "8_result_rgb.png");
+
+    // Custom validations
+    test();
 
     std::cout << "All done!" << std::endl;
     return 0;

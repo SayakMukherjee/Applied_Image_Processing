@@ -58,6 +58,31 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     return image.data[0]; // <-- Change this.
 }
 
+template <typename T>
+int getImageOffset(const Image<T>& image, int x, int y)
+{
+    // Return offset of the pixel at column x and row y in memory such that
+    // the pixel can be accessed by image.data[offset].
+    //
+    // Note, that the image is stored in row-first order,
+    // ie. is the order of [x,y] pixels is [0,0],[1,0],[2,0]...[0,1],[1,1][2,1],...
+    //
+    // Image size can be accessed using image.width and image.height.
+
+    /*******
+     * TODO: YOUR CODE GOES HERE!!!
+     ******/
+
+    return y * image.width + x;
+}
+
+int getVertexOffset(const int width, const int x, const int y)
+{
+    int res;
+    res = y * (width + 1) + x;
+    return res;
+}
+
 
 /*
   Core functions.
@@ -109,7 +134,61 @@ ImageFloat jointBilateralFilter(const ImageFloat& disparity, const ImageRGB& gui
     //    YOUR CODE GOES HERE
     //
 
-    auto example = gauss(0.5f, 1.2f); // This is just example of computing Normal pdf for x=0.5 and std.dev=1.2.
+    auto filter_size = (2 * radius + 1);
+
+    #pragma omp parallel for
+    for (int Y = 0; Y < result.height; Y++) {
+        for (int X = 0; X < result.width; X++) {
+
+            float norm = INVALID_VALUE;
+            float res = INVALID_VALUE;
+
+            for (int y = 0; y < filter_size; y++) {
+                for (int x = 0; x < filter_size; x++) {
+
+                    int y_offset = Y - (radius - y);
+                    int x_offset = X - (radius - x);
+
+                    if (x_offset >= result.width || y_offset >= result.height || x_offset < 0 || y_offset < 0) {
+                        continue;
+                    }
+
+                    if (disparity.data[getImageOffset(disparity, x_offset, y_offset)] == INVALID_VALUE) {
+                        continue;
+                    }
+
+                    float distance = std::pow(std::pow((X - x_offset), 2) + std::pow((Y - y_offset), 2), 0.5);
+
+                    float diff = std::pow(std::pow((guide.data[getImageOffset(guide, X, Y)].x - guide.data[getImageOffset(guide, x_offset, y_offset)].x), 2)
+                            + std::pow((guide.data[getImageOffset(guide, X, Y)].y - guide.data[getImageOffset(guide, x_offset, y_offset)].y), 2)
+                            + std::pow((guide.data[getImageOffset(guide, X, Y)].z - guide.data[getImageOffset(guide, x_offset, y_offset)].z), 2),
+                        0.5);
+
+                    float gauss_spatial = gauss(distance, sigma);
+                    float gauss_intensity = gauss(diff, guide_sigma);
+
+                    float weight = gauss_spatial * gauss_intensity;
+
+                    if (norm == INVALID_VALUE)
+                        norm = 0;
+
+                    norm += weight;
+
+                    if (res == INVALID_VALUE)
+                        res = 0;
+
+                    res += weight * disparity.data[getImageOffset(disparity, x_offset, y_offset)];
+                }
+
+                if (res != INVALID_VALUE && norm != INVALID_VALUE)
+                    result.data[getImageOffset(result, X, Y)] = res / norm;
+                else
+                    result.data[getImageOffset(result, X, Y)] = INVALID_VALUE;
+            }
+        }
+    }
+
+    // auto example = gauss(0.5f, 1.2f); // This is just example of computing Normal pdf for x=0.5 and std.dev=1.2.
 
 
     // Return filtered disparity.
@@ -136,6 +215,23 @@ void normalizeValidValues(ImageFloat& scalar_image)
     //
     //    YOUR CODE GOES HERE
     //
+
+    auto sum = 0.0f;
+
+    for (int i = 0; i < (scalar_image.width * scalar_image.height); i++) {
+
+        if (scalar_image.data[i] != INVALID_VALUE)
+            sum += scalar_image.data[i]; 
+    
+    }
+
+    for (int i = 0; i < (scalar_image.width * scalar_image.height); i++) {
+
+        if (scalar_image.data[i] != INVALID_VALUE)
+            scalar_image.data[i] /= sum;
+    }
+
+
 }
 
 /// <summary>
@@ -157,6 +253,12 @@ ImageFloat disparityToNormalizedDepth(const ImageFloat& disparity)
     //
     //    YOUR CODE GOES HERE
     //
+
+    for (int i = 0; i < (disparity.width * disparity.height); i++) {
+
+        if (disparity.data[i] != INVALID_VALUE)
+            depth.data[i] = 1.0f / disparity.data[i];
+    }
 
     // Rescales valid depth values to [0,1] range.
     normalizeValidValues(depth);
@@ -239,10 +341,25 @@ Mesh createWarpingGrid(const int width, const int height)
     //    YOUR CODE GOES HERE
     //
 
+    int position = 0;
+    float vert_x = 0.0f;
+    float vert_y = 0.0f;
+
+    for (int y = 0; y <= height; y++) {
+        for (int x = 0; x <= width; x++) {
+
+            vert_x = (x > 0 ? float(x) / width : 0.0f);
+            vert_y = (y > 0 ? float(y) / height : 0.0f);
+            vertices[position++] = glm::vec2(vert_x, vert_y);
+
+        }
+    }
+
     // Build index buffer.
     auto num_pixels = width * height;
     auto num_triangles = num_pixels * 2;
     auto triangles = std::vector<glm::ivec3>(num_triangles);
+
 
     //
     // Fill the index buffer (triangles) with indices pointing to the vertex buffer.
@@ -269,7 +386,22 @@ Mesh createWarpingGrid(const int width, const int height)
     
     //
     //    YOUR CODE GOES HERE
-    //
+    
+    position = 0;
+
+    for (int y = 0; y <= height; y++) {
+        for (int x = 0; x <= width; x++) {
+
+            if (x + 1 > width || y + 1 > height)
+                continue;
+
+            triangles[position++] = glm::ivec3(getVertexOffset(width, x, y), getVertexOffset(width, x + 1, y), getVertexOffset(width, x + 1, y + 1));
+
+            triangles[position++] = glm::ivec3(getVertexOffset(width, x, y), getVertexOffset(width, x + 1, y + 1), getVertexOffset(width, x, y + 1));
+        }
+    }
+     
+    
     // Combine the vertex and index buffers into a mesh.
     return Mesh { std::move(vertices), std::move(triangles) };
 }
@@ -366,6 +498,27 @@ ImageRGB fowardWarpImage(const ImageRGB& src_image, const ImageFloat& src_depth,
     //
     //    YOUR CODE GOES HERE
     //
+
+    #pragma omp parallel for 
+    for (int x = 0; x < src_image.width; x++) {
+        for (int y = 0; y < src_image.height; y++) {
+            
+            int new_x = int((x + disparity.data[getImageOffset(disparity, x, y)] * warp_factor) + 0.5);
+
+            if (new_x >= src_image.width || new_x < 0)
+                continue;
+
+            #pragma omp critical
+            if (src_depth.data[getImageOffset(src_depth, x, y)] < dst_depth.data[getImageOffset(dst_depth, new_x, y)]) {
+            
+                dst_image.data[getImageOffset(dst_image, new_x, y)] = src_image.data[getImageOffset(src_image, x, y)];
+
+                dst_depth.data[getImageOffset(dst_depth, new_x, y)] = src_depth.data[getImageOffset(src_depth, x, y)];
+            
+            }
+
+        }
+    }
 
 
     // Return the warped image.

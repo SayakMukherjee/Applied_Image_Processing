@@ -25,6 +25,36 @@ static const SceneParams SceneParams_Middlebury = {
     9, 0.05f, 1.0f, 30.0f, -1.0f,
 };
 
+int test()
+{
+
+    for (const auto& entry : std::filesystem::directory_iterator(outDirPath)) {
+
+        auto filename = entry.path().stem().string() + ".png";
+
+        auto expected = ImageRGB(dataDirPath / "expected-outputs/mini" / filename);
+        auto results = ImageRGB(outDirPath / filename);
+
+        auto exp_num_pixels = expected.width * expected.height;
+        auto res_num_pixels = results.width * results.height;
+
+        if (exp_num_pixels != res_num_pixels) {
+            std::cout << "Size mismatch: " + filename << std::endl;
+            continue;
+        }
+
+        for (int i = 0; i < exp_num_pixels; i++) {
+
+            if (!glm::all(glm::equal(expected.data[i], results.data[i]))) {
+                std::cout << "Validation Failed: " + filename << std::endl;
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /// <summary>
 /// Main method. Runs default tests. Feel free to modify it, add more tests and experiments,
 /// change the input images etc. The file is not part of the solution. All solutions have to 
@@ -47,8 +77,8 @@ int main()
     SceneParams scene_params;
      
     // Change your inputs here!
-    const auto input_select = InputSelection::Mini;
-    //const auto input_select = InputSelection::Middlebury;
+    // const auto input_select = InputSelection::Mini;
+    const auto input_select = InputSelection::Middlebury;
 
     switch (input_select) {
         case InputSelection::Mini:
@@ -180,6 +210,8 @@ int main()
               << std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count() / 1e3f
               << " ms" << std::endl;
     anaglyph.writeToFile(outDirPath / "anaglyph.png", 1.0f, im_write_noise_level);
+
+    //test();
 
     std::cout << "All done!" << std::endl;
     return 0;

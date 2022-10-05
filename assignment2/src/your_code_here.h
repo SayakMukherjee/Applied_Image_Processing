@@ -14,7 +14,30 @@
  * Utility functions.
  */
 
+template <typename T>
+int getImageOffset(const Image<T>& image, int x, int y)
+{
+    // Return offset of the pixel at column x and row y in memory such that
+    // the pixel can be accessed by image.data[offset].
+    //
+    // Note, that the image is stored in row-first order,
+    // ie. is the order of [x,y] pixels is [0,0],[1,0],[2,0]...[0,1],[1,1][2,1],...
+    //
+    // Image size can be accessed using image.width and image.height.
 
+    /*******
+     * TODO: YOUR CODE GOES HERE!!!
+     ******/
+
+    return y * image.width + x;
+}
+
+int getVertexOffset(const int width, const int x, const int y)
+{
+    int res;
+    res = y * (width + 1) + x;
+    return res;
+}
 
 /// <summary>
 /// Bilinearly sample ImageFloat or ImageRGB using relative image coordinates [x,y].
@@ -40,7 +63,7 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     // 
     // Therefore, steps are as follows:
     //     1. Compute absolute position of the sampled point within a pixel grid.
-    //     2. Determine 4 nearest pixels.
+    //     2. Determine 4 nearest pixels. 
     //     3. Bilinearly interpolate their values based on the position of the sampling point between them.
     // 
     // Note: The method is templated by parameter "T". This will be either float or glm::vec3 depending on whether the method
@@ -55,32 +78,55 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     //    YOUR CODE GOES HERE
     //
 
-    return image.data[0]; // <-- Change this.
-}
+    glm::vec2 abs_pos(rel_pos.x * float(image.width), rel_pos.y * float(image.height));
 
-template <typename T>
-int getImageOffset(const Image<T>& image, int x, int y)
-{
-    // Return offset of the pixel at column x and row y in memory such that
-    // the pixel can be accessed by image.data[offset].
-    //
-    // Note, that the image is stored in row-first order,
-    // ie. is the order of [x,y] pixels is [0,0],[1,0],[2,0]...[0,1],[1,1][2,1],...
-    //
-    // Image size can be accessed using image.width and image.height.
+    glm::vec2 topleft(round(abs_pos.x) - 1.0f, round(abs_pos.y) - 1.0f);
+    glm::vec2 topright(round(abs_pos.x), round(abs_pos.y) - 1.0f);
+    glm::vec2 bottomleft(round(abs_pos.x) - 1.0f, round(abs_pos.y));
+    glm::vec2 bottomright(round(abs_pos.x), round(abs_pos.y));
 
-    /*******
-     * TODO: YOUR CODE GOES HERE!!!
-     ******/
+    auto factor_x = 0.0f;
+    auto factor_y = 0.0f;
+    auto pixel_size = 1.0f / float(image.width);
+    auto yLow = image.data[0];
+    auto yHigh = image.data[0];
+    auto result = image.data[0];
 
-    return y * image.width + x;
-}
+    
+    if (round(abs_pos.x) - abs_pos.x > 0) { // 0.8
+    
+        factor_x = glm::mod(abs_pos.x, 1.0f) - (pixel_size / 2.0f);
+        // factor_x = 0.5f;
 
-int getVertexOffset(const int width, const int x, const int y)
-{
-    int res;
-    res = y * (width + 1) + x;
-    return res;
+        yLow = image.data[getImageOffset(image, topleft.x, topleft.y)] + (image.data[getImageOffset(image, topright.x, topright.y)] - image.data[getImageOffset(image, topleft.x, topleft.y)]) * factor_x;
+        yHigh = image.data[getImageOffset(image, bottomleft.x, bottomleft.y)] + (image.data[getImageOffset(image, bottomright.x, bottomright.y)] - image.data[getImageOffset(image, bottomleft.x, bottomleft.y)]) * factor_x;
+    
+    } else { // 1.2
+    
+        factor_x = (pixel_size / 2.0f) - glm::mod(abs_pos.x, 1.0f);
+        // factor_x = 0.5f;
+
+        yLow = image.data[getImageOffset(image, topright.x, topright.y)] + (image.data[getImageOffset(image, topleft.x, topleft.y)] - image.data[getImageOffset(image, topright.x, topright.y)]) * factor_x;
+        yHigh = image.data[getImageOffset(image, bottomright.x, bottomright.y)] + (image.data[getImageOffset(image, bottomleft.x, bottomleft.y)] - image.data[getImageOffset(image, bottomright.x, bottomright.y)]) * factor_x;
+
+    }
+    
+    if (round(abs_pos.y) - abs_pos.y > 0) {
+
+        factor_y = glm::mod(abs_pos.y, 1.0f) - (pixel_size / 2.0f);
+        // factor_y = 0.5f;
+
+        result = yLow + (yHigh - yLow) * factor_y;
+
+    } else {
+
+        factor_y = (pixel_size / 2.0f) - glm::mod(abs_pos.y, 1.0f);
+        // factor_y = 0.5f;
+
+        result = yHigh + (yLow - yHigh) * factor_y;
+    }
+
+    return result;
 }
 
 
@@ -179,12 +225,13 @@ ImageFloat jointBilateralFilter(const ImageFloat& disparity, const ImageRGB& gui
 
                     res += weight * disparity.data[getImageOffset(disparity, x_offset, y_offset)];
                 }
-
-                if (res != INVALID_VALUE && norm != INVALID_VALUE)
-                    result.data[getImageOffset(result, X, Y)] = res / norm;
-                else
-                    result.data[getImageOffset(result, X, Y)] = INVALID_VALUE;
             }
+
+            if (res != INVALID_VALUE && norm != INVALID_VALUE)
+                result.data[getImageOffset(result, X, Y)] = res / norm;
+            else
+                result.data[getImageOffset(result, X, Y)] = INVALID_VALUE;
+
         }
     }
 
@@ -216,19 +263,32 @@ void normalizeValidValues(ImageFloat& scalar_image)
     //    YOUR CODE GOES HERE
     //
 
-    auto sum = 0.0f;
+    auto min_val = INVALID_VALUE;
+    auto max_val = INVALID_VALUE;
 
     for (int i = 0; i < (scalar_image.width * scalar_image.height); i++) {
 
-        if (scalar_image.data[i] != INVALID_VALUE)
-            sum += scalar_image.data[i]; 
+        if (min_val == INVALID_VALUE && max_val == INVALID_VALUE) {
+        
+            min_val = scalar_image.data[i];
+            max_val = scalar_image.data[i];
+
+        } else {
+        
+            if (scalar_image.data[i] < min_val)
+                min_val = scalar_image.data[i];
+
+            if (scalar_image.data[i] > max_val)
+                max_val = scalar_image.data[i];
+        
+        }
     
     }
 
     for (int i = 0; i < (scalar_image.width * scalar_image.height); i++) {
 
         if (scalar_image.data[i] != INVALID_VALUE)
-            scalar_image.data[i] /= sum;
+            scalar_image.data[i] = (scalar_image.data[i] - min_val) / (max_val - min_val);
     }
 
 
@@ -437,7 +497,7 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
     //
 
     // Here is an example use of our bilinear interpolation.
-    auto interpolated_value = sampleBilinear(disparity, glm::vec2(0.5f, 0.5f));
+    // auto interpolated_value = sampleBilinear(disparity, glm::vec2(0.5f, 0.5f));
     // For a even-sized image it SHOULD return the mean of the center 4 pixels,
     // for an odd-sized image it SHOULD return the central pixel.
     // I recommend you to test that.
@@ -446,7 +506,22 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
     //    YOUR CODE GOES HERE
     //
 
+    auto norm_disparity = disparity;
+    normalizeValidValues(norm_disparity);
 
+    for (int i = 0; i < grid.vertices.size(); i++) {
+    
+        if (1.0f - grid.vertices[i].x > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON && 1.0f - grid.vertices[i].y > EDGE_EPSILON && grid.vertices[i].y > EDGE_EPSILON) {
+            
+            new_grid.vertices[i].x = grid.vertices[i].x + (scaling_factor * (sampleBilinear(disparity, grid.vertices[i]) / disparity.width));
+
+            //if (new_grid.vertices[i].x < 0) {
+            //    new_grid.vertices[i].x = grid.vertices[i].x;
+            //}
+
+        }
+
+    }
 
     return new_grid;
 }
@@ -590,14 +665,53 @@ ImageRGB backwardWarpImage(const ImageRGB& src_image, const ImageFloat& src_dept
     //
     
     // Example of testing point [0.1, 0.2] is inside a triangle.
-    bool is_point_inside = isPointInsideTriangle(glm::vec2(0.1, 0.2), glm::vec2(0, 0), glm::vec2(1, 0), glm::vec2(0, 1));
+    // bool is_point_inside = isPointInsideTriangle(glm::vec2(0.1, 0.2), glm::vec2(0, 0), glm::vec2(1, 0), glm::vec2(0, 1));
 
     // Example of computing barycentric coordinates of a point [0.1, 0.2] inside a triangle.
-    glm::vec2 bc = barycentricCoordinates(glm::vec2(0.1, 0.2), glm::vec2(0, 0), glm::vec2(1, 0), glm::vec2(0, 1));
+    // glm::vec2 bc = barycentricCoordinates(glm::vec2(0.1, 0.2), glm::vec2(0, 0), glm::vec2(1, 0), glm::vec2(0, 1));
 
     //
     //    YOUR CODE GOES HERE
     //
+
+    auto pixel_width = 1.0f / dst_image.width;
+    auto pixel_height = 1.0f / dst_image.height;
+
+    for (int i = 0; i < dst_grid.triangles.size(); i++) {
+
+        auto vert_1 = dst_grid.vertices[dst_grid.triangles[i].x];
+        auto vert_2 = dst_grid.vertices[dst_grid.triangles[i].y];
+        auto vert_3 = dst_grid.vertices[dst_grid.triangles[i].z];
+
+        auto x_min = std::max(std::min(std::min(vert_1.x, vert_2.x), vert_3.x), 0.0f);
+        auto x_max = std::min(std::max(std::max(vert_1.x, vert_2.x), vert_3.x), 1.0f);
+        auto y_min = std::max(std::min(std::min(vert_1.y, vert_2.y), vert_3.y), 0.0f);
+        auto y_max = std::min(std::max(std::max(vert_1.y, vert_2.y), vert_3.y), 1.0f);
+
+        for (int y = std::floor(y_min * dst_image.height); y < std::ceil(y_max * dst_image.height); y++) {
+            for (int x = std::floor(x_min * dst_image.width); x < std::ceil(x_max * dst_image.width); x++) {
+                
+                glm::vec2 pixel_center_dst((x / dst_image.width) + (pixel_width / 2.0f), (y / dst_image.height) + (pixel_height / 2.0f));
+
+                if (isPointInsideTriangle(pixel_center_dst, vert_1, vert_2, vert_3)) {
+                    
+                    glm::vec3 bc = barycentricCoordinates(pixel_center_dst, vert_1, vert_2, vert_3);
+
+                    glm::vec2 pixel_center_src(src_grid.vertices[src_grid.triangles[i].x] * bc.x + src_grid.vertices[src_grid.triangles[i].y] * bc.y + src_grid.vertices[src_grid.triangles[i].z] * bc.z);
+
+                    auto new_depth = sampleBilinear(src_depth, pixel_center_src);
+
+                    if (new_depth < dst_depth.data[getImageOffset(dst_depth, x, y)]) {
+                        dst_depth.data[getImageOffset(dst_depth, x, y)] = new_depth;
+                        dst_image.data[getImageOffset(dst_image, x, y)] = sampleBilinear(src_image, pixel_center_src);
+                    }
+
+                }
+
+            }
+        }
+    
+    }
 
     // Return the warped image.
     return dst_image;

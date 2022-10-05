@@ -84,6 +84,7 @@ int main()
         case InputSelection::Mini:
             // The 5x4 mini image.
             image = ImageRGB(dataDirPath / "mini/image.png");
+            // image = ImageRGB(dataDirPath / "moon_1.jpg");
             src_disparity = loadDisparity(dataDirPath / "mini/disparity.png");
             scene_params = SceneParams_Mini;
             break;
@@ -98,6 +99,13 @@ int main()
         default:
             throw std::runtime_error("Invalid scene ID.");
     }
+
+    /*auto tmp = sampleBilinear(image, glm::vec2(0.5f, 0.5f));
+    auto middle = (image.data[5] + image.data[6] + image.data[9] + image.data[10]) / 4.0f;
+
+    if (!glm::all(glm::equal(tmp, middle))) {
+        std::cout << "Validation Failed: " << std::endl;
+    }*/
 
 
     // Test save the inputs.

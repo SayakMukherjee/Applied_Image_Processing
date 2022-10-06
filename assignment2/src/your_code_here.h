@@ -85,45 +85,54 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     glm::vec2 bottomleft(round(abs_pos.x) - 1.0f, round(abs_pos.y));
     glm::vec2 bottomright(round(abs_pos.x), round(abs_pos.y));
 
-    auto factor_x = 0.0f;
-    auto factor_y = 0.0f;
-    auto pixel_size = 1.0f / float(image.width);
-    auto yLow = image.data[0];
-    auto yHigh = image.data[0];
-    auto result = image.data[0];
+    T yLow, yHigh, result;
 
-    
-    if (round(abs_pos.x) - abs_pos.x > 0) { // 0.8
-    
-        factor_x = glm::mod(abs_pos.x, 1.0f) - (pixel_size / 2.0f);
-        // factor_x = 0.5f;
+    auto topValid = false, bottomValid = false;
 
-        yLow = image.data[getImageOffset(image, topleft.x, topleft.y)] + (image.data[getImageOffset(image, topright.x, topright.y)] - image.data[getImageOffset(image, topleft.x, topleft.y)]) * factor_x;
-        yHigh = image.data[getImageOffset(image, bottomleft.x, bottomleft.y)] + (image.data[getImageOffset(image, bottomright.x, bottomright.y)] - image.data[getImageOffset(image, bottomleft.x, bottomleft.y)]) * factor_x;
-    
-    } else { // 1.2
-    
-        factor_x = (pixel_size / 2.0f) - glm::mod(abs_pos.x, 1.0f);
-        // factor_x = 0.5f;
+    if (topleft.x >= 0 && topleft.x < image.width && topleft.y >= 0 && topleft.y < image.height) {
+        
+        yLow = (1.0f - glm::abs((topleft.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, topleft.x, topleft.y)];
 
-        yLow = image.data[getImageOffset(image, topright.x, topright.y)] + (image.data[getImageOffset(image, topleft.x, topleft.y)] - image.data[getImageOffset(image, topright.x, topright.y)]) * factor_x;
-        yHigh = image.data[getImageOffset(image, bottomright.x, bottomright.y)] + (image.data[getImageOffset(image, bottomleft.x, bottomleft.y)] - image.data[getImageOffset(image, bottomright.x, bottomright.y)]) * factor_x;
+        topValid = true;
 
     }
+
+    if (topright.x >= 0 && topright.x < image.width && topright.y >= 0 && topright.y < image.height) {
+
+        if (topValid)
+            yLow += (1.0f - glm::abs((topright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, topright.x, topright.y)];
+        else
+            yLow = (1.0f - glm::abs((topright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, topright.x, topright.y)];
+
+        topValid = true;
+    }
+
+    if (bottomleft.x >= 0 && bottomleft.x < image.width && bottomleft.y >= 0 && bottomleft.y < image.height) {
+
+        yHigh = (1.0f - glm::abs((bottomleft.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, bottomleft.x, bottomleft.y)];
+
+        bottomValid = true;
+    }
+
+    if (bottomright.x >= 0 && bottomright.x < image.width && bottomright.y >= 0 && bottomright.y < image.height) {
+
+        if (bottomValid)
+            yHigh += (1.0f - glm::abs((bottomright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, bottomright.x, bottomright.y)];
+        else
+            yHigh = (1.0f - glm::abs((bottomright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, bottomright.x, bottomright.y)];
+
+        bottomValid = true;
+    }
+
+    if (topValid) {
     
-    if (round(abs_pos.y) - abs_pos.y > 0) {
+        result = (1.0f - glm::abs((topright.y + 0.5f) - abs_pos.y)) * yLow;
+    
+    }
 
-        factor_y = glm::mod(abs_pos.y, 1.0f) - (pixel_size / 2.0f);
-        // factor_y = 0.5f;
+    if (bottomValid) {
 
-        result = yLow + (yHigh - yLow) * factor_y;
-
-    } else {
-
-        factor_y = (pixel_size / 2.0f) - glm::mod(abs_pos.y, 1.0f);
-        // factor_y = 0.5f;
-
-        result = yHigh + (yLow - yHigh) * factor_y;
+        result = (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
     }
 
     return result;
@@ -511,7 +520,7 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
 
     for (int i = 0; i < grid.vertices.size(); i++) {
     
-        if (1.0f - grid.vertices[i].x > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON && 1.0f - grid.vertices[i].y > EDGE_EPSILON && grid.vertices[i].y > EDGE_EPSILON) {
+        if (1.0f - grid.vertices[i].x > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON) {
             
             new_grid.vertices[i].x = grid.vertices[i].x + (scaling_factor * (sampleBilinear(disparity, grid.vertices[i]) / disparity.width));
 

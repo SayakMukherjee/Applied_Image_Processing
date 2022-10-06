@@ -78,7 +78,7 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     //    YOUR CODE GOES HERE
     //
 
-    glm::vec2 abs_pos(rel_pos.x * float(image.width), rel_pos.y * float(image.height));
+    glm::vec2 abs_pos(rel_pos.x * image.width, rel_pos.y * image.height);
 
     glm::vec2 topleft(round(abs_pos.x) - 1.0f, round(abs_pos.y) - 1.0f);
     glm::vec2 topright(round(abs_pos.x), round(abs_pos.y) - 1.0f);
@@ -126,16 +126,17 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
 
     if (topValid) {
     
-        result = (1.0f - glm::abs((topright.y + 0.5f) - abs_pos.y)) * yLow;
+        result = (1.0f - glm::abs((topleft.y + 0.5f) - abs_pos.y)) * yLow;
     
     }
 
     if (bottomValid) {
 
         if (topValid)
-            result += (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
+            result += (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
         else
-            result = (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
+            result = (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
+ 
 
     }
 
@@ -530,7 +531,7 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
 
     for (int i = 0; i < grid.vertices.size(); i++) {
     
-        if (1.0f - grid.vertices[i].x > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON) {
+        if ((1.0f - grid.vertices[i].x) > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON) {
             
             new_grid.vertices[i].x = grid.vertices[i].x + (scaling_factor * (sampleBilinear(disparity, grid.vertices[i]) / disparity.width));
 

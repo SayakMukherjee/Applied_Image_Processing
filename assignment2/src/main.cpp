@@ -1,4 +1,5 @@
 #include "your_code_here.h"
+#include <glm/gtc/epsilon.hpp>
 
 static const std::filesystem::path dataDirPath { DATA_DIR };
 static const std::filesystem::path outDirPath { OUTPUT_DIR };
@@ -25,15 +26,36 @@ static const SceneParams SceneParams_Middlebury = {
     9, 0.05f, 1.0f, 30.0f, -1.0f,
 };
 
-int test()
+int test(const InputSelection scene_name)
 {
+
+    float EPSILON_error;
+
+    switch (scene_name) {
+    
+        case InputSelection::Mini:
+            EPSILON_error = 1e-2f;
+            break;
+        case InputSelection::Middlebury:
+            EPSILON_error = 1e-1f;
+            break;
+        default:
+            throw std::runtime_error("Invalid scene ID.");
+
+    }
 
     for (const auto& entry : std::filesystem::directory_iterator(outDirPath)) {
 
         auto filename = entry.path().stem().string() + ".png";
 
-        auto expected = ImageRGB(dataDirPath / "expected-outputs/mini" / filename);
-        auto results = ImageRGB(outDirPath / filename);
+        ImageRGB expected, results;
+
+        if (scene_name == InputSelection::Mini)
+            expected = ImageRGB(dataDirPath / "expected-outputs/mini" / filename);
+        else
+            expected = ImageRGB(dataDirPath / "expected-outputs/half" / filename);
+
+        results = ImageRGB(outDirPath / filename);
 
         auto exp_num_pixels = expected.width * expected.height;
         auto res_num_pixels = results.width * results.height;
@@ -45,7 +67,7 @@ int test()
 
         for (int i = 0; i < exp_num_pixels; i++) {
 
-            if (!glm::all(glm::equal(expected.data[i], results.data[i]))) {
+            if (!glm::all(glm::epsilonEqual(expected.data[i], results.data[i], EPSILON_error))) {
                 std::cout << "Validation Failed: " + filename << std::endl;
                 break;
             }
@@ -77,8 +99,8 @@ int main()
     SceneParams scene_params;
      
     // Change your inputs here!
-    // const auto input_select = InputSelection::Mini;
-    const auto input_select = InputSelection::Middlebury;
+    const auto input_select = InputSelection::Mini;
+    // const auto input_select = InputSelection::Middlebury;
 
     switch (input_select) {
         case InputSelection::Mini:
@@ -219,7 +241,8 @@ int main()
               << " ms" << std::endl;
     anaglyph.writeToFile(outDirPath / "anaglyph.png", 1.0f, im_write_noise_level);
 
-    //test();
+    
+    test(input_select);
 
     std::cout << "All done!" << std::endl;
     return 0;

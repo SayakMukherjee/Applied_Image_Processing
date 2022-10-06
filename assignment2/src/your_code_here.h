@@ -132,7 +132,11 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
 
     if (bottomValid) {
 
-        result = (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
+        if (topValid)
+            result += (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
+        else
+            result = (1.0f - glm::abs((bottomright.y + 0.5f) - abs_pos.y)) * yHigh;
+
     }
 
     return result;
@@ -376,6 +380,15 @@ ImageFloat normalizedDepthToDisparity(
     //    YOUR CODE GOES HERE
     //
 
+    for (int i = 0; i < (px_disparity.width * px_disparity.height); i++) {
+    
+        auto user_distance_mm = near_plane_mm + (depth.data[i] * (far_plane_mm - near_plane_mm));
+        auto z = screen_distance_mm - user_distance_mm;
+
+        px_disparity.data[i] = (iod_mm / px_size_mm) * (z / (screen_distance_mm + z));
+
+    }
+
     return px_disparity; // returns disparity measured in pixels
 }
 
@@ -515,18 +528,11 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
     //    YOUR CODE GOES HERE
     //
 
-    auto norm_disparity = disparity;
-    normalizeValidValues(norm_disparity);
-
     for (int i = 0; i < grid.vertices.size(); i++) {
     
         if (1.0f - grid.vertices[i].x > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON) {
             
             new_grid.vertices[i].x = grid.vertices[i].x + (scaling_factor * (sampleBilinear(disparity, grid.vertices[i]) / disparity.width));
-
-            //if (new_grid.vertices[i].x < 0) {
-            //    new_grid.vertices[i].x = grid.vertices[i].x;
-            //}
 
         }
 
@@ -700,18 +706,21 @@ ImageRGB backwardWarpImage(const ImageRGB& src_image, const ImageFloat& src_dept
         for (int y = std::floor(y_min * dst_image.height); y < std::ceil(y_max * dst_image.height); y++) {
             for (int x = std::floor(x_min * dst_image.width); x < std::ceil(x_max * dst_image.width); x++) {
                 
-                glm::vec2 pixel_center_dst((x / dst_image.width) + (pixel_width / 2.0f), (y / dst_image.height) + (pixel_height / 2.0f));
+                glm::vec2 pixel_center_dst((x + 0.5f) / dst_image.width, (y + 0.5f) / dst_image.height);
 
                 if (isPointInsideTriangle(pixel_center_dst, vert_1, vert_2, vert_3)) {
                     
                     glm::vec3 bc = barycentricCoordinates(pixel_center_dst, vert_1, vert_2, vert_3);
 
+                    if (isnan(bc.x) || isinf(bc.x))
+                        continue;
+
                     glm::vec2 pixel_center_src(src_grid.vertices[src_grid.triangles[i].x] * bc.x + src_grid.vertices[src_grid.triangles[i].y] * bc.y + src_grid.vertices[src_grid.triangles[i].z] * bc.z);
 
-                    auto new_depth = sampleBilinear(src_depth, pixel_center_src);
+                    auto pixel_depth_src = sampleBilinear(src_depth, pixel_center_src);
 
-                    if (new_depth < dst_depth.data[getImageOffset(dst_depth, x, y)]) {
-                        dst_depth.data[getImageOffset(dst_depth, x, y)] = new_depth;
+                    if (pixel_depth_src < dst_depth.data[getImageOffset(dst_depth, x, y)]) {
+                        dst_depth.data[getImageOffset(dst_depth, x, y)] = pixel_depth_src;
                         dst_image.data[getImageOffset(dst_image, x, y)] = sampleBilinear(src_image, pixel_center_src);
                     }
 
@@ -757,12 +766,25 @@ ImageRGB createAnaglyph(const ImageRGB& image_left, const ImageRGB& image_right,
     //
 
     // Example: RGB->HSV->RGB should be approx identity.
-    auto rgb_orig = glm::vec3(0.2, 0.6, 0.4);
-    auto rgb_should_be_same = hsvToRgb(rgbToHsv(rgb_orig)); // expect rgb == rgb_2 (up to numerical precision)
+    // auto rgb_orig = glm::vec3(0.2, 0.6, 0.4);
+    // auto rgb_should_be_same = hsvToRgb(rgbToHsv(rgb_orig)); // expect rgb == rgb_2 (up to numerical precision)
 
     //
     //    YOUR CODE GOES HERE
     //
+
+    for (int i = 0; i < (anaglyph.width * anaglyph.height); i++) {
+    
+        auto hsv_left = rgbToHsv(image_left.data[i]);
+        auto hsv_right = rgbToHsv(image_right.data[i]);
+
+        hsv_left.y *= saturation;
+        hsv_right.y *= saturation;
+
+        anaglyph.data[i] = glm::vec3(hsvToRgb(hsv_left).x, hsvToRgb(hsv_right).y, hsvToRgb(hsv_right).z); 
+
+    }
+
 
     // Returns a single analgyph image.
     return anaglyph;

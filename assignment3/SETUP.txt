@@ -1,0 +1,7 @@
+1. Install Conda: 
+    https://conda.io/projects/conda/en/latest/user-guide/install/windows.html
+2. Open the Anaconda promptand navigate to the project folder
+3. Create a Conda environment with the given environment.yml: 
+    conda env create -f environment.yml
+4. Activate environment:
+    conda activate assignment3

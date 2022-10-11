@@ -5,8 +5,10 @@ import torch.optim as optim
 from helper_functions import *
 from your_code_here import *
 
-torch.manual_seed(2022) # Set random seed for better reproducibility 
-device = 'cpu' # Make sure that if you use cuda that it also runs on CPU
+os.environ['TORCH_HOME'] = 'models'
+
+torch.manual_seed(2022)  # Set random seed for better reproducibility
+device = 'cpu'  # Make sure that if you use cuda that it also runs on CPU
 
 # Hyperparameters
 img_size = 128
@@ -44,10 +46,11 @@ content_img = image_loader(content_img_path, device=device, img_size=img_size)
 vgg_mean = torch.tensor([0.485, 0.456, 0.406]).to(device)
 vgg_std = torch.tensor([0.229, 0.224, 0.225]).to(device)
 
-def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_steps, 
+
+def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_steps,
                      random_init=True, w_style=w_style_1, w_content=w_content, w_tv=w_tv):
     """ Neural Style Transfer optmization procedure for a single style image.
-    
+
     # Parameters:
         @vgg_mean, VGG channel-wise mean, torch.tensor of size (c)
         @vgg_std, VGG channel-wise standard deviation, detorch.tensor of size (c)
@@ -73,7 +76,6 @@ def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_st
     # Retrieve feature maps for content and style image
     style_features = model(normed_style_img)
     content_features = model(normed_content_img)
-    
     # Either initialize the image from random noise or from the content image
     if random_init:
         optim_img = torch.randn(content_img.data.size(), device=device)
@@ -83,13 +85,13 @@ def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_st
 
     # Initialize optimizer and set image as parameter to be optimized
     optimizer = optim.LBFGS([optim_img])
-    
+
     # Training Loop
     iter = [0]
     while iter[0] <= num_steps:
 
         def closure():
-            
+
             # Set gradients to zero before next optimization step
             optimizer.zero_grad()
 
@@ -103,13 +105,16 @@ def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_st
 
             # TODO: 2. Calculate the content loss
             if w_content > 0:
-                c_loss = w_content * content_loss(input_features, content_features, content_layers)
-            else: 
+                c_loss = w_content * \
+                    content_loss(input_features,
+                                 content_features, content_layers)
+            else:
                 c_loss = torch.tensor([0]).to(device)
 
             # TODO: 3. Calculate the style loss
             if w_style > 0:
-                s_loss = w_style * style_loss(input_features, style_features, style_layers)
+                s_loss = w_style * \
+                    style_loss(input_features, style_features, style_layers)
             else:
                 s_loss = torch.tensor([0]).to(device)
 
@@ -120,7 +125,7 @@ def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_st
                 tv_loss = torch.tensor([0]).to(device)
 
             # Sum up the losses and do a backward pass
-            loss = s_loss + c_loss + tv_loss 
+            loss = s_loss + c_loss + tv_loss
             loss.backward()
 
             # Print losses every 50 iterations
@@ -133,27 +138,28 @@ def run_single_image(vgg_mean, vgg_std, content_img, style_img, num_steps=num_st
 
         # Do an optimization step as defined in our closure() function
         optimizer.step(closure)
-    
+
     # Final clamping
     with torch.no_grad():
         optim_img.clamp_(0, 1)
 
     return optim_img
 
+
 # Single image optimization
 print('Start single style image optimization.')
 output1 = run_single_image(
-    vgg_mean, vgg_std, content_img, style_img_1, num_steps=num_steps, 
+    vgg_mean, vgg_std, content_img, style_img_1, num_steps=num_steps,
     random_init=True, w_style=w_style_1, w_content=w_content, w_tv=w_tv)
 output_name1 = f'single img_size-{img_size} num_steps-{num_steps} w_style-{w_style_1} w_content-{w_content} w_tv-{w_tv}'
 save_image(output1, title=output_name1, out_folder=out_folder)
 
 # Mixing of multiple style images
 # TODO: 5. Implement style transfer for two given images
-print('\nStart double style image optimization.')
-output2 = run_double_image(
-    vgg_mean, vgg_std, content_img, style_img_1, style_img_2, num_steps=num_steps, 
-    random_init=True, w_style_1=w_style_1, w_style_2=w_style_2, w_content=w_content, w_tv=w_tv, 
-    content_layers=content_layers, style_layers=style_layers, device=device)
-output_name2 = f'double img_size-{img_size} num_steps-{num_steps} w_style_1-{w_style_1} w_style_2-{w_style_2} w_content-{w_content} w_tv-{w_tv}'
-save_image(output2, title=output_name2, out_folder=out_folder)
+# print('\nStart double style image optimization.')
+# output2 = run_double_image(
+#     vgg_mean, vgg_std, content_img, style_img_1, style_img_2, num_steps=num_steps,
+#     random_init=True, w_style_1=w_style_1, w_style_2=w_style_2, w_content=w_content, w_tv=w_tv,
+#     content_layers=content_layers, style_layers=style_layers, device=device)
+# output_name2 = f'double img_size-{img_size} num_steps-{num_steps} w_style_1-{w_style_1} w_style_2-{w_style_2} w_content-{w_content} w_tv-{w_tv}'
+# save_image(output2, title=output_name2, out_folder=out_folder)

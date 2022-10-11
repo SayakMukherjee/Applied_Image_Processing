@@ -124,21 +124,14 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
         bottomValid = true;
     }
 
-    if (topValid) {
-    
-        result = (1.0f - glm::abs((topleft.y + 0.5f) - abs_pos.y)) * yLow;
-    
-    }
+    if (topValid && !bottomValid)
+        result = yLow;
 
-    if (bottomValid) {
+    else if (!topValid && bottomValid)
+        result = yHigh;
 
-        if (topValid)
-            result += (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
-        else
-            result = (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
- 
-
-    }
+    else if (topValid && bottomValid)
+        result = (1.0f - glm::abs((topleft.y + 0.5f) - abs_pos.y)) * yLow + (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
 
     return result;
 }
@@ -382,9 +375,12 @@ ImageFloat normalizedDepthToDisparity(
     //
 
     for (int i = 0; i < (px_disparity.width * px_disparity.height); i++) {
+
+        if (depth.data[i] == INVALID_VALUE)
+            continue;
     
         auto user_distance_mm = near_plane_mm + (depth.data[i] * (far_plane_mm - near_plane_mm));
-        auto z = screen_distance_mm - user_distance_mm;
+        auto z = user_distance_mm - screen_distance_mm; 
 
         px_disparity.data[i] = (iod_mm / px_size_mm) * (z / (screen_distance_mm + z));
 
@@ -531,7 +527,7 @@ Mesh warpGrid(Mesh& grid, const ImageFloat& disparity, const float scaling_facto
 
     for (int i = 0; i < grid.vertices.size(); i++) {
     
-        if ((1.0f - grid.vertices[i].x) > EDGE_EPSILON && grid.vertices[i].x > EDGE_EPSILON) {
+        if (grid.vertices[i].x < (1.0f - EDGE_EPSILON) && grid.vertices[i].x > EDGE_EPSILON) {
             
             new_grid.vertices[i].x = grid.vertices[i].x + (scaling_factor * (sampleBilinear(disparity, grid.vertices[i]) / disparity.width));
 
@@ -554,7 +550,7 @@ ImageRGB fowardWarpImage(const ImageRGB& src_image, const ImageFloat& src_depth,
 {
     // The dimensions of src image, src depth and disparity maps all match.
     assert(src_image.width == disparity.width && src_image.height == disparity.height);
-    assert(src_image.width == disparity.width && src_depth.height == src_depth.height);
+    assert(src_image.width == disparity.width && src_depth.height == disparity.height);
     
     // Create a new image and depth map for the output.
     auto dst_image = ImageRGB(src_image.width, src_image.height);
@@ -591,10 +587,10 @@ ImageRGB fowardWarpImage(const ImageRGB& src_image, const ImageFloat& src_depth,
     //
 
     #pragma omp parallel for 
-    for (int x = 0; x < src_image.width; x++) {
-        for (int y = 0; y < src_image.height; y++) {
+    for (int y = 0; y < src_image.height; y++) {
+        for (int x = 0; x < src_image.width; x++) {
             
-            int new_x = int((x + disparity.data[getImageOffset(disparity, x, y)] * warp_factor) + 0.5);
+            auto new_x = glm::round(x + disparity.data[getImageOffset(disparity, x, y)] * warp_factor);
 
             if (new_x >= src_image.width || new_x < 0)
                 continue;
@@ -690,9 +686,6 @@ ImageRGB backwardWarpImage(const ImageRGB& src_image, const ImageFloat& src_dept
     //    YOUR CODE GOES HERE
     //
 
-    auto pixel_width = 1.0f / dst_image.width;
-    auto pixel_height = 1.0f / dst_image.height;
-
     for (int i = 0; i < dst_grid.triangles.size(); i++) {
 
         auto vert_1 = dst_grid.vertices[dst_grid.triangles[i].x];
@@ -716,7 +709,11 @@ ImageRGB backwardWarpImage(const ImageRGB& src_image, const ImageFloat& src_dept
                     if (isnan(bc.x) || isinf(bc.x))
                         continue;
 
-                    glm::vec2 pixel_center_src(src_grid.vertices[src_grid.triangles[i].x] * bc.x + src_grid.vertices[src_grid.triangles[i].y] * bc.y + src_grid.vertices[src_grid.triangles[i].z] * bc.z);
+                    glm::vec3 src_triangle = src_grid.triangles[i];
+                    auto src_x = src_grid.vertices[src_triangle.x].x * bc.x + src_grid.vertices[src_triangle.y].x * bc.y + src_grid.vertices[src_triangle.z].x * bc.z;
+                    auto src_y = src_grid.vertices[src_triangle.x].y * bc.x + src_grid.vertices[src_triangle.y].y * bc.y + src_grid.vertices[src_triangle.z].y * bc.z;
+
+                    glm::vec2 pixel_center_src(src_x, src_y);
 
                     auto pixel_depth_src = sampleBilinear(src_depth, pixel_center_src);
 

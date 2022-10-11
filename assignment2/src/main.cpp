@@ -34,7 +34,7 @@ int test(const InputSelection scene_name)
     switch (scene_name) {
     
         case InputSelection::Mini:
-            EPSILON_error = 1e-2f;
+            EPSILON_error = 1e-1f;
             break;
         case InputSelection::Middlebury:
             EPSILON_error = 1e-1f;
@@ -99,8 +99,8 @@ int main()
     SceneParams scene_params;
      
     // Change your inputs here!
-    const auto input_select = InputSelection::Mini;
-    // const auto input_select = InputSelection::Middlebury;
+    // const auto input_select = InputSelection::Mini;
+    const auto input_select = InputSelection::Middlebury;
 
     switch (input_select) {
         case InputSelection::Mini:

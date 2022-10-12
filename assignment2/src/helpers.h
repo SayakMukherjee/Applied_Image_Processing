@@ -147,13 +147,13 @@ inline bool isPointInsideTriangle(const glm::vec2& pt, const glm::vec2& v1, cons
 /// <returns></returns>
 auto barycentricCoordinates(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b, const glm::vec2& c)
 {
-    auto v0 = b - a, v1 = c - a, v2 = p - a;
-    float d00 = glm::dot(v0, v0);
-    float d01 = glm::dot(v0, v1);
-    float d11 = glm::dot(v1, v1);
-    float d20 = glm::dot(v2, v0);
-    float d21 = glm::dot(v2, v1);
-    float denom = d00 * d11 - d01 * d01;
+    glm::dvec2 v0 = b - a, v1 = c - a, v2 = p - a;
+    auto d00 = glm::dot(v0, v0);
+    auto d01 = glm::dot(v0, v1);
+    auto d11 = glm::dot(v1, v1);
+    auto d20 = glm::dot(v2, v0);
+    auto d21 = glm::dot(v2, v1);
+    auto denom = d00 * d11 - d01 * d01;
 
     auto bc = glm::vec3();
     bc.y = (d11 * d20 - d01 * d21) / denom;

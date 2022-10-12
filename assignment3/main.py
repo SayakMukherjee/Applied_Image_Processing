@@ -156,10 +156,10 @@ save_image(output1, title=output_name1, out_folder=out_folder)
 
 # Mixing of multiple style images
 # TODO: 5. Implement style transfer for two given images
-# print('\nStart double style image optimization.')
-# output2 = run_double_image(
-#     vgg_mean, vgg_std, content_img, style_img_1, style_img_2, num_steps=num_steps,
-#     random_init=True, w_style_1=w_style_1, w_style_2=w_style_2, w_content=w_content, w_tv=w_tv,
-#     content_layers=content_layers, style_layers=style_layers, device=device)
-# output_name2 = f'double img_size-{img_size} num_steps-{num_steps} w_style_1-{w_style_1} w_style_2-{w_style_2} w_content-{w_content} w_tv-{w_tv}'
-# save_image(output2, title=output_name2, out_folder=out_folder)
+print('\nStart double style image optimization.')
+output2 = run_double_image(
+    vgg_mean, vgg_std, content_img, style_img_1, style_img_2, num_steps=num_steps,
+    random_init=True, w_style_1=w_style_1, w_style_2=w_style_2, w_content=w_content, w_tv=w_tv,
+    content_layers=content_layers, style_layers=style_layers, device=device)
+output_name2 = f'double img_size-{img_size} num_steps-{num_steps} w_style_1-{w_style_1} w_style_2-{w_style_2} w_content-{w_content} w_tv-{w_tv}'
+save_image(output2, title=output_name2, out_folder=out_folder)

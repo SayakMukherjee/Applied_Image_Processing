@@ -47,9 +47,9 @@ def content_loss(input_features, content_features, content_layers):
 
     for layer in content_layers:
         loss += ((input_features[layer] -
-                 content_features[layer]).pow(2)).mean()
+                 content_features[layer].detach()).pow(2)).mean()
 
-    return loss.div_(len(content_layers))
+    return loss / (len(content_layers))
 
 
 def gram_matrix(x):
@@ -67,7 +67,7 @@ def gram_matrix(x):
 
     x = torch.bmm(x.view(b, c, -1), x.view(b, c, -1).transpose(1, 2))
 
-    return x.div_(h*w)
+    return x / (c*h*w)
 
 
 def style_loss(input_features, style_features, style_layers):
@@ -92,13 +92,14 @@ def style_loss(input_features, style_features, style_layers):
     # - Implement the gram_matrix function.
 
     loss = 0.
-    # b, _, _, _ = style_features[style_layers[0]].shape
 
     for layer in style_layers:
         loss += ((gram_matrix(input_features[layer]) -
-                 gram_matrix(style_features[layer])).pow(2)).mean()
+                 gram_matrix(style_features[layer].detach())).pow(2)).mean()
 
-    return loss.div_(len(style_layers))
+    return loss / (len(style_layers))
+
+    # return torch.tensor([0.], requires_grad=True)
 
 
 def total_variation_loss(y):
@@ -114,6 +115,8 @@ def total_variation_loss(y):
     loss = (y.pow(2)).mean()
 
     return loss
+
+    # return torch.tensor([0.], requires_grad=True)
 
 
 def run_double_image(

@@ -132,7 +132,8 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
 
     else if (topValid && bottomValid)
         result = (1.0f - glm::abs((topleft.y + 0.5f) - abs_pos.y)) * yLow + (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
-
+    
+    // return T(0.0 / 0.0);
     return result;
 }
 

@@ -34,10 +34,10 @@ int test(const InputSelection scene_name)
     switch (scene_name) {
     
         case InputSelection::Mini:
-            EPSILON_error = 1e-1f;
+            EPSILON_error = 1e-2f;
             break;
         case InputSelection::Middlebury:
-            EPSILON_error = 1e-1f;
+            EPSILON_error = 1e-2f;
             break;
         default:
             throw std::runtime_error("Invalid scene ID.");

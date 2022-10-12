@@ -78,8 +78,10 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
     //    YOUR CODE GOES HERE
     //
 
+    // get the absolute position in the image
     glm::vec2 abs_pos(rel_pos.x * image.width, rel_pos.y * image.height);
 
+    // get the pixel positions to interpolate
     glm::vec2 topleft(round(abs_pos.x) - 1.0f, round(abs_pos.y) - 1.0f);
     glm::vec2 topright(round(abs_pos.x), round(abs_pos.y) - 1.0f);
     glm::vec2 bottomleft(round(abs_pos.x) - 1.0f, round(abs_pos.y));
@@ -89,11 +91,17 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
 
     auto topValid = false, bottomValid = false;
 
+    auto topLeftValid = false, topRightValid = false, bottomLeftValid = false, bottomRightValid = false;
+
+    // check the validity of each pixel and multiply with associated weights
+
     if (topleft.x >= 0 && topleft.x < image.width && topleft.y >= 0 && topleft.y < image.height) {
         
         yLow = (1.0f - glm::abs((topleft.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, topleft.x, topleft.y)];
 
         topValid = true;
+
+        topLeftValid = true;
 
     }
 
@@ -105,6 +113,16 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
             yLow = (1.0f - glm::abs((topright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, topright.x, topright.y)];
 
         topValid = true;
+
+        topRightValid = true;
+    }
+
+    // resolve for boundary condition : to interpolate only in y direction
+    if (topLeftValid && !topRightValid) {
+        yLow = image.data[getImageOffset(image, topleft.x, topleft.y)];
+    } 
+    else if (!topLeftValid && topRightValid) {
+        yLow = image.data[getImageOffset(image, topright.x, topright.y)];
     }
 
     if (bottomleft.x >= 0 && bottomleft.x < image.width && bottomleft.y >= 0 && bottomleft.y < image.height) {
@@ -112,6 +130,8 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
         yHigh = (1.0f - glm::abs((bottomleft.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, bottomleft.x, bottomleft.y)];
 
         bottomValid = true;
+
+        bottomLeftValid = true;
     }
 
     if (bottomright.x >= 0 && bottomright.x < image.width && bottomright.y >= 0 && bottomright.y < image.height) {
@@ -122,6 +142,16 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
             yHigh = (1.0f - glm::abs((bottomright.x + 0.5f) - abs_pos.x)) * image.data[getImageOffset(image, bottomright.x, bottomright.y)];
 
         bottomValid = true;
+
+        bottomRightValid = true;
+    }
+
+    // resolve for boundary condition : to interpolate only in y direction
+    if (bottomLeftValid && !bottomRightValid) {
+        yHigh = image.data[getImageOffset(image, bottomleft.x, bottomleft.y)];
+    } 
+    else if (!bottomLeftValid && bottomRightValid) {
+        yHigh = image.data[getImageOffset(image, bottomright.x, bottomright.y)];
     }
 
     if (topValid && !bottomValid)
@@ -132,8 +162,9 @@ inline T sampleBilinear(const Image<T>& image, const glm::vec2& rel_pos)
 
     else if (topValid && bottomValid)
         result = (1.0f - glm::abs((topleft.y + 0.5f) - abs_pos.y)) * yLow + (1.0f - glm::abs((bottomleft.y + 0.5f) - abs_pos.y)) * yHigh;
-    
-    // return T(0.0 / 0.0);
+    else
+        result = T(INVALID_VALUE);
+
     return result;
 }
 
@@ -718,7 +749,7 @@ ImageRGB backwardWarpImage(const ImageRGB& src_image, const ImageFloat& src_dept
 
                     auto pixel_depth_src = sampleBilinear(src_depth, pixel_center_src);
 
-                    if (pixel_depth_src < dst_depth.data[getImageOffset(dst_depth, x, y)]) {
+                    if (pixel_depth_src < dst_depth.data[getImageOffset(dst_depth, x, y)]) {   
                         dst_depth.data[getImageOffset(dst_depth, x, y)] = pixel_depth_src;
                         dst_image.data[getImageOffset(dst_image, x, y)] = sampleBilinear(src_image, pixel_center_src);
                     }

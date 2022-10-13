@@ -112,11 +112,10 @@ def total_variation_loss(y):
     """
     # TODO: 4. Implement the total variation loss.
 
-    loss = (y.pow(2)).mean()
+    loss = torch.abs(torch.diff(y, dim=2)).sum() + \
+        torch.abs(torch.diff(y, dim=3)).sum()
 
     return loss
-
-    # return torch.tensor([0.], requires_grad=True)
 
 
 def run_double_image(

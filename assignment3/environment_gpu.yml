@@ -1,0 +1,10 @@
+name: assignment3
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.10.4
+  - matplotlib
+  - pytorch=1.12.1=py3.10_cuda11.3_cudnn8.3.2_0
+  - pytorch-mutex=1.0=cuda
+  - torchvision=0.13.1=py310_cu113

@@ -8,7 +8,7 @@ from your_code_here import *
 os.environ['TORCH_HOME'] = 'models'
 
 torch.manual_seed(2022)  # Set random seed for better reproducibility
-device = 'cpu'  # Make sure that if you use cuda that it also runs on CPU
+device = 'cuda'  # Make sure that if you use cuda that it also runs on CPU
 
 # Hyperparameters
 img_size = 128

@@ -6,7 +6,7 @@ dependencies:
   - python=3.10.4
   - matplotlib
   - numpy
-  - scikit-image
+  - ignite
   - pytorch=1.12.1
   - pytorch-mutex=1.0=cuda
   - torchvision=0.13.1

@@ -1,0 +1,14 @@
+{
+    "data_path": "../data",
+    "log_path": "../logs",
+    "seed": 40,
+    "device": "cpu",
+    "batch_size": 8,
+    "learning_rate": 0.0002,
+    "b1": 0.5,
+    "b2": 0.999,
+    "epochs": 1,
+    "image_size": 128,
+    "mask_size": 64,
+    "val_interval": 1
+}

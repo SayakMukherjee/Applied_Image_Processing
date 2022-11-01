@@ -228,7 +228,7 @@ def main():
     config.load_config(import_path='config.json')
 
     # Create log directory
-    if not os.isdir(config.local_vars['log_path']):
+    if not os.path.isdir(config.local_vars['log_path']):
         os.mkdir(config.local_vars['log_path'])
 
     # Setup logger
@@ -266,9 +266,9 @@ def main():
 
     generator_model = ContextEncoder().to(device)
 
-    train(config, dataset, generator_model, device)
+    # train(config, dataset, generator_model, device)
 
-    test(config, dataset, generator_model, device)
+    # test(config, dataset, generator_model, device)
 
     visualize_samples(config, dataset, generator_model, device, 'Results')
 

@@ -1,5 +1,6 @@
 import logging
 import torch
+import os
 
 from torchvision.utils import save_image
 from torch.autograd import Variable
@@ -13,6 +14,10 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
     logger = logging.getLogger()
 
     logger.info('Start generating visuals...')
+
+    # Create log directory
+    if not os.isdir(config.local_vars['save_path']):
+        os.mkdir(config.local_vars['save_path'])
 
     # Get data loaders
     _, _, test_dataLoader = dataset.loaders(batch_size = 8)
@@ -41,3 +46,5 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
     # Save results
     sample = torch.cat((masked_images.data, generated_images.data, images.data), -2)
     save_image(sample, "../images/%s.png" % name, nrow=6, normalize=True)
+
+    logger.info('Completed generating visuals...')

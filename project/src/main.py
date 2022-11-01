@@ -1,7 +1,9 @@
+from genericpath import isdir
 import logging
 import random
 import numpy as np
 import torch
+import os
 
 from torch.autograd import Variable
 from datasets import ParisStreetViewDataset
@@ -224,6 +226,10 @@ def main():
     # Load configuration
     config = Config(locals().copy())
     config.load_config(import_path='config.json')
+
+    # Create log directory
+    if not os.isdir(config.local_vars['log_path']):
+        os.mkdir(config.local_vars['log_path'])
 
     # Setup logger
     logging.basicConfig(level=logging.INFO, 

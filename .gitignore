@@ -354,3 +354,5 @@ out/
 outputs/
 models/
 data/
+project/images
+project/logs

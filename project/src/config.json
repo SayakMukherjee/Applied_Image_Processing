@@ -1,6 +1,7 @@
 {
     "data_path": "../data",
     "log_path": "../logs",
+    "save_path": "../outputs",
     "seed": 40,
     "device": "cpu",
     "batch_size": 8,

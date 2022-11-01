@@ -2,14 +2,16 @@
     "data_path": "../data",
     "log_path": "../logs",
     "save_path": "../outputs",
+    "model_path": "../models",
+    "dataset": "parisStreetView",
     "seed": 40,
-    "device": "cpu",
-    "batch_size": 8,
+    "device": "cuda",
+    "batch_size": 32,
     "learning_rate": 0.0002,
     "b1": 0.5,
     "b2": 0.999,
-    "epochs": 1,
+    "epochs": 200,
     "image_size": 128,
     "mask_size": 64,
-    "val_interval": 1
+    "val_interval": 10
 }

@@ -18,6 +18,7 @@ from networks import ContextEncoder, Discriminator, Vgg19
 from utils.config import Config
 from utils.visualize import visualize_samples
 from utils.losses import style_loss, content_loss
+from utils.postprocess import poisson_blend
 from ignite.metrics import PSNR, SSIM
 from ignite.engine import Engine
 from torch.utils.data import Dataset
@@ -107,13 +108,6 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
     # Disable info logs for ignite engine
     logging.getLogger("ignite.engine.engine.Engine").setLevel(logging.WARNING)
 
-    # Initialising model weights
-    if config.local_vars['load_model']:
-        generator, discriminator = load_model(config, generator, discriminator, 'model_' + config.local_vars['dataset'])
-    else:
-        generator.apply(init_weights)
-        discriminator.apply(init_weights)
-
     # Initialise model to calculate content and style loss
     if config.local_vars['use_style_content_loss']:
 
@@ -198,7 +192,7 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
                 gen_loss = 0.001 * gen_adv + 0.499 * gen_pixel + 0.25 * c_loss + 0.25 * s_loss
             
             else:
-                
+
                 gen_loss = 0.001 * gen_adv + 0.999 * gen_pixel
 
             gen_loss.backward()
@@ -319,9 +313,16 @@ def test(config: Config, dataset: Dataset, generator: ContextEncoder, device: st
 
         generated_images = masked_images.clone()
 
-        generated_images[:, :,
-                         topLeftLoc : topLeftLoc + config.local_vars['mask_size'],
-                         topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
+        if config.local_vars['postprocess']:
+
+            generated_images = poisson_blend(config, masked_images, gen_parts, topLeft, device)
+
+        else:
+            generated_images = masked_images.clone()
+
+            generated_images[:, :, 
+                            topLeftLoc : topLeftLoc + config.local_vars['mask_size'], 
+                            topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
 
         # Calculate metrics
         state = default_evaluator.run([[generated_images, images]])
@@ -395,8 +396,16 @@ def main():
     generator = ContextEncoder().to(device)
     discriminator = Discriminator().to(device)
 
+    # Initialising model weights
+    if config.local_vars['load_model']:
+        generator, discriminator = load_model(config, generator, discriminator, 'model_' + config.local_vars['dataset'])
+    else:
+        generator.apply(init_weights)
+        discriminator.apply(init_weights)
+
     # Train, test and visualise samples
-    train(config, dataset, generator, discriminator, device)
+    if config.local_vars['train']:
+        train(config, dataset, generator, discriminator, device)
 
     test(config, dataset, generator, device)
 

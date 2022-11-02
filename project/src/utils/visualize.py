@@ -15,7 +15,7 @@ from torchvision.utils import save_image
 from torch.autograd import Variable
 from networks import ContextEncoder
 from utils.config import Config
-
+from utils.postprocess import poisson_blend
 from torch.utils.data import Dataset
 
 def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncoder, device: str, name: str):
@@ -36,8 +36,9 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
     # Create log directory
     if not os.path.isdir(config.local_vars['save_path']):
         os.mkdir(config.local_vars['save_path'])
-    batch_size =12
+
     # Get data loaders
+    batch_size = 12
     _, _, test_dataLoader = dataset.loaders(batch_size = batch_size)
 
     Tensor = torch.cuda.FloatTensor if device == 'cuda' else torch.FloatTensor
@@ -54,14 +55,21 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
     with torch.no_grad():
         gen_parts = generator(masked_images)
 
+    if config.local_vars['postprocess']:
+        generated_images_blended = poisson_blend(config, masked_images, gen_parts, topLeft, device)
+
+
     generated_images = masked_images.clone()
 
     generated_images[:, :, 
-                     topLeftLoc : topLeftLoc + config.local_vars['mask_size'], 
-                     topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
+                    topLeftLoc : topLeftLoc + config.local_vars['mask_size'], 
+                    topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
 
     # Save results
-    sample = torch.cat((masked_images.data, generated_images.data, images.data), -1)
+    if config.local_vars['postprocess']:
+        sample = torch.cat((masked_images.data, generated_images.data, generated_images_blended.data, images.data), -1)
+    else:
+        sample = torch.cat((masked_images.data, generated_images.data, images.data), -1)
     save_image(sample, "../outputs/%s.png" % name, nrow=3, normalize=True)    
 
     logger.info('Completed generating visuals...')

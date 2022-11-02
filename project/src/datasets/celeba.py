@@ -3,24 +3,26 @@
 # Created Date: 02-Nov-2022
 # version ='1.0'
 # ---------------------------------------------------------------------------
-# This file contains code for configuring the Paris Street View dataset. 
-# Prior to execution make sure to download the datasetand extract the 
-# contents into the ../data/ directory. As this data is not publicly 
-# available, send an email to prof. Deepak Pathak <dpathak@cs.cmu.edu>
-# to acquire the dataset.
+# This file contains code for configuring the CelebA dataset. Prior to 
+# execution make sure to download the celebA align dataset from
+# http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html and extract the contents
+# into the ../data/ directory. Randomly choosen 14900 images are being
+# used to train context encoder owing to resource constraints.
 # ---------------------------------------------------------------------------
 
 import os
+import json
 import numpy as np
 import torchvision.transforms as transforms
 import logging
+import random
 
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader, random_split
 
 
-class ParisStreetViewDataset():
-    """Base class for Paris Street View Dataset
+class CelebADataset():
+    """Base class for CelebA Dataset
     """
 
     def __init__(self, root:str, image_size:int, mask_size:int):
@@ -31,11 +33,11 @@ class ParisStreetViewDataset():
                                              transforms.ToTensor(),
                                              transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-        self.train_set = ParisStreetView(root, self.transform, mode='train', mask_size = mask_size, image_size = image_size)
+        self.train_set = CelebA(root, self.transform, mode='train', mask_size = mask_size, image_size = image_size)
 
-        self.val_set = ParisStreetView(root, self.transform, mode='val', mask_size = mask_size, image_size = image_size)
+        self.val_set = CelebA(root, self.transform, mode='val', mask_size = mask_size, image_size = image_size)
 
-        self.test_set = ParisStreetView(root, self.transform, mode='test', mask_size = mask_size, image_size = image_size)
+        self.test_set = CelebA(root, self.transform, mode='test', mask_size = mask_size, image_size = image_size)
 
         self.logger.info('Train: %d samples, Val: %d samples, Test: %d samples'
                         % (len(self.train_set), len(self.val_set), len(self.test_set)))
@@ -64,7 +66,7 @@ class ParisStreetViewDataset():
         return train_dataLoader, val_dataLoader, test_dataLoader
 
 
-class ParisStreetView(Dataset):
+class CelebA(Dataset):
     """Implementation of CelebA Dataset
     """
 
@@ -76,12 +78,18 @@ class ParisStreetView(Dataset):
         self.transform = transform
         self.image_size = image_size
         self.mask_size = mask_size
+        self.imagePath = os.path.join(self.root, 'img_align_celeba')
 
         # Train-test split
-        if self.mode in ['train', 'val']:
-            self.imagePath = os.path.join(self.root, 'paris_train_original')
+        if not os.path.exists(os.path.join(self.root, 'train-test-split.json')):
+            self.__configure_dataset__()
 
-            self.images = os.listdir(self.imagePath)
+        with open(os.path.join(self.root, 'train-test-split.json'), 'r') as file:
+            self.train_test_split = json.load(file)
+
+        if self.mode in ['train', 'val']:
+
+            self.images = self.train_test_split["train"]
 
             train_size = (int) (len(self.images) * 0.9)
 
@@ -91,9 +99,25 @@ class ParisStreetView(Dataset):
                 self.images = self.images[train_size:]
 
         else:
-            self.imagePath = os.path.join(self.root, 'paris_eval_gt')
 
-            self.images = os.listdir(self.imagePath)
+            self.images = self.train_test_split["test"]
+
+    def __configure_dataset__(self):
+        """Initial configuration for dividing samples
+        """
+
+        all_images = os.listdir(self.imagePath)
+
+        train_split = random.sample(all_images, 14900)
+
+        for elems in train_split:
+            all_images.remove(elems)
+
+        test_split = random.sample(all_images, 100)
+
+        with open(os.path.join(self.root, 'train-test-split.json'), 'w') as fp:
+            json.dump({"train": train_split, "test": test_split}, fp)
+
 
     def random_mask(self, image):
         """Generate a mask at a random location

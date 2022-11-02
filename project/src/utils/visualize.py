@@ -1,3 +1,11 @@
+#----------------------------------------------------------------------------
+# Created By  : Sayak Mukherjee
+# Created Date: 02-Nov-2022
+# version ='1.0'
+# ---------------------------------------------------------------------------
+# This file contains the methods to visualise the results
+# ---------------------------------------------------------------------------
+
 import logging
 import torch
 import os
@@ -11,6 +19,15 @@ from utils.config import Config
 from torch.utils.data import Dataset
 
 def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncoder, device: str, name: str):
+    """Visualise results by plotting ground truth, masked image and inpainted image
+
+    Args:
+        config (Config): config object
+        dataset (Dataset): dataset object
+        generator (ContextEncoder): generator model
+        device (str): 'cuda' or 'cpu'
+        name (str): name for saving the visualization
+    """
 
     logger = logging.getLogger()
 

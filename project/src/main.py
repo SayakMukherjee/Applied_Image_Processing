@@ -1,4 +1,11 @@
-from genericpath import isdir
+#----------------------------------------------------------------------------
+# Created By  : Sayak Mukherjee
+# Created Date: 02-Nov-2022
+# version ='1.0'
+# ---------------------------------------------------------------------------
+# This file contains code for training and testing the context encoder.
+# ---------------------------------------------------------------------------
+
 import logging
 import random
 import numpy as np
@@ -6,7 +13,7 @@ import torch
 import os
 
 from torch.autograd import Variable
-from datasets import ParisStreetViewDataset
+from datasets import ParisStreetViewDataset, CelebADataset
 from networks import ContextEncoder, Discriminator
 from utils.config import Config
 from utils.visualize import visualize_samples
@@ -14,13 +21,25 @@ from ignite.metrics import PSNR, SSIM
 from ignite.engine import Engine
 from torch.utils.data import Dataset
 
+################################
+# Utility functions for training
+################################
+
 def save_model(config: Config, generator: ContextEncoder, discriminator: Discriminator, name: str):
+    """Method to save the trained models
+
+    Args:
+        config (Config): config object
+        generator (ContextEncoder): generator model
+        discriminator (Discriminator): discriminator model
+        name (str): name of the saved model file
+    """
 
     if not os.path.isdir(config.local_vars['model_path']):
         os.mkdir(config.local_vars['model_path'])
 
-    generator_dict = generator.net.state_dict()
-    discriminator_dict = discriminator.ae_net.state_dict()
+    generator_dict = generator.state_dict()
+    discriminator_dict = discriminator.state_dict()
 
     export_path = os.path.join(config.local_vars['model_path'], name + '.tar')
 
@@ -28,6 +47,18 @@ def save_model(config: Config, generator: ContextEncoder, discriminator: Discrim
                 'discriminator_dict': discriminator_dict}, export_path)
 
 def load_model(config: Config, generator: ContextEncoder, discriminator: Discriminator, name: str):
+    """Method to load saved model
+
+    Args:
+        config (Config): config object
+        generator (ContextEncoder): generator model
+        discriminator (Discriminator): discriminator model
+        name (str): name of the saved model file
+
+    Returns:
+        generator (ContextEncoder): loaded generator model
+        discriminator (Discriminator): loaded discriminator model
+    """
 
     import_path = os.path.join(config.local_vars['model_path'], name + '.tar')
 
@@ -39,6 +70,11 @@ def load_model(config: Config, generator: ContextEncoder, discriminator: Discrim
     return generator, discriminator
 
 def init_weights(model):
+    """Method to initialise the model weights
+
+    Args:
+        model (ContextEncoder or Discriminator): model whose weights to be initialised
+    """
 
     classname = model.__class__.__name__
 
@@ -49,7 +85,21 @@ def init_weights(model):
         torch.nn.init.normal_(model.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(model.bias.data, 0.0)
 
+###########################
+# End of Utility functions 
+###########################
+
 def train(config: Config, dataset: Dataset, generator: ContextEncoder, discriminator: Discriminator, device: str):
+    """Method to train the generator and discriminator
+
+    Args:
+        config (Config): config object
+        dataset (Dataset): dataset object
+        generator (ContextEncoder): generator model
+        discriminator (Discriminator): discriminator model
+        device (str): 'cuda' or 'cpu'
+
+    """
 
     logger = logging.getLogger()
 
@@ -63,12 +113,12 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
     logger.info('Models initialised')
 
     # Loss functions
-    adv_loss = torch.nn.MSELoss()
-    pixel_loss = torch.nn.L1Loss()
+    adv_loss = torch.nn.BCELoss()
+    pixel_loss = torch.nn.MSELoss()
 
     # Optimizers
     optimizer_G = torch.optim.Adam(generator.parameters(),
-                                   lr = config.local_vars['learning_rate'],
+                                   lr = config.local_vars['learning_rate'] * 10,
                                    betas = (config.local_vars['b1'], config.local_vars['b2']))
 
     optimizer_D = torch.optim.Adam(discriminator.parameters(),
@@ -158,6 +208,7 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
 
                 topLeftLoc = topLeft[0].item()
 
+                # Inpaint samples
                 with torch.no_grad():
                     gen_parts = generator(masked_images)
 
@@ -168,6 +219,7 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
                                  topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
 
 
+                # Calculate metrics
                 state = default_evaluator.run([[generated_images, images]])
 
                 psnr_loss += state.metrics['psnr']
@@ -179,10 +231,23 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
                 % (psnr_loss/total, ssim_loss/total )
             )
 
+        # Save model checkpoints
+        if epoch % config.local_vars['chkpoint_interval'] == 0 and epoch != config.local_vars['epochs'] - 1:
+            save_model(config, generator, discriminator, 'model_' + config.local_vars['dataset'] + '_' +str(epoch))
+
     logger.info('Completed training...')
 
 def test(config: Config, dataset: Dataset, generator: ContextEncoder, device: str):
+    """Method to test the trained generator and discriminator
 
+    Args:
+        config (Config): config object
+        dataset (Dataset): dataset object
+        generator (ContextEncoder): generator model
+        discriminator (Discriminator): discriminator model
+        device (str): 'cuda' or 'cpu'
+
+    """
     logger = logging.getLogger()
 
     # Disable info logs for ignite engine
@@ -220,6 +285,7 @@ def test(config: Config, dataset: Dataset, generator: ContextEncoder, device: st
 
         topLeftLoc = topLeft[0].item()
 
+        # Inpaint samples
         with torch.no_grad():
             gen_parts = generator(masked_images)
 
@@ -229,7 +295,7 @@ def test(config: Config, dataset: Dataset, generator: ContextEncoder, device: st
                          topLeftLoc : topLeftLoc + config.local_vars['mask_size'],
                          topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
 
-
+        # Calculate metrics
         state = default_evaluator.run([[generated_images, images]])
 
         psnr_loss += state.metrics['psnr']
@@ -281,25 +347,27 @@ def main():
 
     logger.info('Computation device: %s' % device)
 
+    # Configure dataset
     if config.local_vars['dataset'] == "parisStreetView":
         dataset = ParisStreetViewDataset(root = config.local_vars['data_path'],
                                         image_size = config.local_vars['image_size'],
                                         mask_size = 64)
 
     elif config.local_vars['dataset'] == "celeba":
-        dataset = ParisStreetViewDataset(root = config.local_vars['data_path'],
-                                        image_size = config.local_vars['image_size'],
-                                        mask_size = 64)
+        dataset = CelebADataset(root = config.local_vars['data_path'],
+                                image_size = config.local_vars['image_size'],
+                                mask_size = 64)
     else:
         logger.info('Unknown dataset')
         return
 
-    logger.info('Configured dataset')
+    logger.info('Configured dataset: %s.' %config.local_vars['dataset'])
 
     # Generator and discriminator models
     generator = ContextEncoder().to(device)
     discriminator = Discriminator().to(device)
 
+    # Train, test and visualise samples
     train(config, dataset, generator, discriminator, device)
 
     test(config, dataset, generator, device)

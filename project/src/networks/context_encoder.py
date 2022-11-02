@@ -1,10 +1,20 @@
+#----------------------------------------------------------------------------
+# Created By  : Sayak Mukherjee
+# Created Date: 02-Nov-2022
+# version ='1.0'
+# ---------------------------------------------------------------------------
+# This file contains the implementation of context encoder as mentioned by
+# Pathak et al. in "Context Encoders: Feature Learning by Inpainting".
+# Referred from: 
+# 1. https://github.com/pathak22/context-encoder/blob/master/train.lua [Original]
+# 2. https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/context_encoder/models.py [PyTorch re-implementation]
+# ---------------------------------------------------------------------------
+
 import torch.nn as nn
 
-# Referred from: 
-# 1. https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/context_encoder/models.py
-# 2. https://github.com/pathak22/context-encoder/blob/master/train.lua
-
 class ContextEncoder(nn.Module):
+    """Implementation of the context encoder model
+    """
 
     def __init__(self, channels: int = 3):
         super(ContextEncoder, self).__init__()

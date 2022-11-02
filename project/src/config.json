@@ -10,8 +10,9 @@
     "learning_rate": 0.0002,
     "b1": 0.5,
     "b2": 0.999,
-    "epochs": 200,
+    "epochs": 20,
     "image_size": 128,
     "mask_size": 64,
-    "val_interval": 10
+    "val_interval": 5,
+    "chkpoint_interval": 10
 }

@@ -107,8 +107,11 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
     logging.getLogger("ignite.engine.engine.Engine").setLevel(logging.WARNING)
 
     # Initialising model weights
-    generator.apply(init_weights)
-    discriminator.apply(init_weights)
+    if config.local_vars['load_model']:
+        generator, discriminator = load_model(config, generator, discriminator, 'model_' + config.local_vars['dataset'])
+    else:
+        generator.apply(init_weights)
+        discriminator.apply(init_weights)
 
     logger.info('Models initialised')
 

@@ -4,6 +4,7 @@
     "save_path": "../outputs",
     "model_path": "../models",
     "dataset": "parisStreetView",
+    "load_model": true,
     "seed": 40,
     "device": "cuda",
     "batch_size": 32,

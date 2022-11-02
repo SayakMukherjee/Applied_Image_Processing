@@ -14,9 +14,10 @@ import os
 
 from torch.autograd import Variable
 from datasets import ParisStreetViewDataset, CelebADataset
-from networks import ContextEncoder, Discriminator
+from networks import ContextEncoder, Discriminator, Vgg19
 from utils.config import Config
 from utils.visualize import visualize_samples
+from utils.losses import style_loss, content_loss
 from ignite.metrics import PSNR, SSIM
 from ignite.engine import Engine
 from torch.utils.data import Dataset
@@ -113,6 +114,17 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
         generator.apply(init_weights)
         discriminator.apply(init_weights)
 
+    # Initialise model to calculate content and style loss
+    if config.local_vars['use_style_content_loss']:
+
+        if not os.path.isdir(config.local_vars['model_path']):
+            os.mkdir(config.local_vars['model_path'])
+        
+        # For downloading pre-trained networks
+        os.environ['TORCH_HOME'] = config.local_vars['model_path']
+
+        style_network = Vgg19(config.local_vars['content_layers'], config.local_vars['style_layers'], device)
+
     logger.info('Models initialised')
 
     # Loss functions
@@ -174,7 +186,20 @@ def train(config: Config, dataset: Dataset, generator: ContextEncoder, discrimin
             gen_pixel = pixel_loss(gen_parts, masked_sections)
 
             # Total loss of generator
-            gen_loss = 0.001 * gen_adv + 0.999 * gen_pixel
+            if config.local_vars['use_style_content_loss']:
+
+                original_features = style_network(masked_sections)
+                generated_features = style_network(gen_parts)
+
+                s_loss =  style_loss(generated_features, original_features, config.local_vars['style_layers'])
+
+                c_loss =  content_loss(generated_features, original_features, config.local_vars['content_layers'])
+
+                gen_loss = 0.001 * gen_adv + 0.499 * gen_pixel + 0.25 * c_loss + 0.25 * s_loss
+            
+            else:
+                
+                gen_loss = 0.001 * gen_adv + 0.999 * gen_pixel
 
             gen_loss.backward()
             optimizer_G.step()

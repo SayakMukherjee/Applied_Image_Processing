@@ -15,5 +15,16 @@
     "image_size": 128,
     "mask_size": 64,
     "val_interval": 5,
-    "chkpoint_interval": 10
+    "chkpoint_interval": 10,
+    "use_style_content_loss": false,
+    "content_layers": [
+        "conv4_2"
+    ],
+    "style_layers": [
+        "conv1_1",
+        "conv2_1",
+        "conv3_1",
+        "conv4_1",
+        "conv5_1"
+    ]
 }

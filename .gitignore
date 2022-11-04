@@ -351,7 +351,7 @@ MigrationBackup/
 
 # Others
 out/
-outputs/
+assignment*/outputs/
 models/
 data/
 project/images

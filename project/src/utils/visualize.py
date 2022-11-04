@@ -62,15 +62,17 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
 
     generated_images = masked_images.clone()
 
-    generated_images[:, :, 
-                    topLeftLoc : topLeftLoc + config.local_vars['mask_size'], 
+    generated_images[:, :,
+                    topLeftLoc : topLeftLoc + config.local_vars['mask_size'],
                     topLeftLoc : topLeftLoc + config.local_vars['mask_size']] = gen_parts
+
+    fontsize = 20
 
     # Save results
     if config.local_vars['postprocess']:
         sample = torch.cat((masked_images.data, generated_images.data, generated_images_blended.data, images.data), -1)
         save_image(sample, "../outputs/%s.png" % name, nrow=3, normalize=True)
-    else:  
+    else:
 
         fig, ax = plt.subplots(4, 9, figsize=(30,15))
 
@@ -82,57 +84,57 @@ def visualize_samples(config: Config, dataset: Dataset, generator: ContextEncode
             img = transforms.ToPILImage()(img)
             ax[nrow][0].imshow(img)
             ax[nrow][0].axis('off')
-            ax[nrow][0].set_title('Masked Image')
+            ax[nrow][0].set_title('Masked Image', fontsize=fontsize)
 
             img = generated_images[idx].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][1].imshow(img)
             ax[nrow][1].axis('off')
-            ax[nrow][1].set_title('Inpainted Image')
+            ax[nrow][1].set_title('Inpainted Image', fontsize=fontsize)
 
             img = images[idx].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][2].imshow(img)
             ax[nrow][2].axis('off')
-            ax[nrow][2].set_title('Original Image')
+            ax[nrow][2].set_title('Original Image', fontsize=fontsize)
 
             # 2nd image
             img = masked_images[idx + 1].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][3].imshow(img)
             ax[nrow][3].axis('off')
-            ax[nrow][3].set_title('Masked Image')
+            ax[nrow][3].set_title('Masked Image', fontsize=fontsize)
 
             img = generated_images[idx + 1].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][4].imshow(img)
             ax[nrow][4].axis('off')
-            ax[nrow][4].set_title('Inpainted Image')
+            ax[nrow][4].set_title('Inpainted Image', fontsize=fontsize)
 
             img = images[idx + 1].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][5].imshow(img)
             ax[nrow][5].axis('off')
-            ax[nrow][5].set_title('Original Image')
+            ax[nrow][5].set_title('Original Image', fontsize=fontsize)
 
             # 3rd image
             img = masked_images[idx + 2].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][6].imshow(img)
             ax[nrow][6].axis('off')
-            ax[nrow][6].set_title('Masked Image')
+            ax[nrow][6].set_title('Masked Image', fontsize=fontsize)
 
             img = generated_images[idx + 2].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][7].imshow(img)
             ax[nrow][7].axis('off')
-            ax[nrow][7].set_title('Inpainted Image')
+            ax[nrow][7].set_title('Inpainted Image', fontsize=fontsize)
 
             img = images[idx + 2].cpu().clone() * torch.Tensor([0.5]) + torch.Tensor([0.5])
             img = transforms.ToPILImage()(img)
             ax[nrow][8].imshow(img)
             ax[nrow][8].axis('off')
-            ax[nrow][8].set_title('Original Image')
+            ax[nrow][8].set_title('Original Image', fontsize=fontsize)
 
             nrow += 1
 

@@ -2,6 +2,10 @@
 
 This is a [PyTorch](https://pytorch.org/) re-implementation of *Context Encoder* as proposed by Pathak et al. in "Context encoders: Feature learning by inpainting". The code is referenced from the [original github repository](https://github.com/pathak22/context-encoder) and [PyTorch-GAN library](https://github.com/eriklindernoren/PyTorch-GAN).
 
+The entire codebase has been written from scatch. The core training framework can be found in `<path-to-Context-Encoder-directory>\src\main.py`. The generator and adversarial networks are configured within `<path-to-Context-Encoder-directory>\src\networks` directory. 
+
+The implementation is also extended to use style loss, content loss and total variation loss using a pre-trained VGG19 model inspire by *Context-Aware Semantic In-painting*. However, the extension could not be investigated owing to resource constraints.
+
 ## Installation
 This code is written in `Python 3.10.4` and requires the packages listed in `requirements.yml` (for cpu-based execution) or `requirements_gpu.yml` (for using gpu).
 
